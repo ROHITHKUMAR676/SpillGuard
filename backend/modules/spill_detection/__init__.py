@@ -1,0 +1,1 @@
+"""Spill detection module."""

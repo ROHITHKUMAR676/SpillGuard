@@ -1,0 +1,1 @@
+"""Slick analytics module."""

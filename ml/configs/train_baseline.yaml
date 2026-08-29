@@ -1,0 +1,4 @@
+model:
+  name: unet_baseline
+training:
+  epochs: 1

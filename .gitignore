@@ -1,0 +1,9 @@
+.env
+**/__pycache__/
+**/node_modules/
+ml/checkpoints/
+ml/data/raw/
+ml/data/processed/
+*.npy
+*.pt
+frontend/dist/

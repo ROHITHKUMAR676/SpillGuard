@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: ps26143
+      POSTGRES_USER: ps26143
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    ports: ["5432:5432"]
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes: ["minio_data:/data"]
+    ports: ["9000:9000", "9001:9001"]
+
+  backend:
+    build: ./backend
+    env_file: .env
+    depends_on: [postgres, redis, minio]
+    ports: ["8000:8000"]
+    volumes: ["./backend:/app"]
+
+  ml-worker:
+    build: ./backend
+    command: celery -A workers.celery_app worker -Q ml -c 1
+    env_file: .env
+    depends_on: [redis, minio]
+    volumes: ["./backend:/app", "./ml/checkpoints:/models"]
+
+  drift-worker:
+    build: ./backend
+    command: celery -A workers.celery_app worker -Q drift -c 2
+    env_file: .env
+    depends_on: [redis, minio, postgres]
+    volumes: ["./backend:/app"]
+
+  frontend:
+    build: ./frontend
+    env_file: .env
+    ports: ["5173:5173"]
+    volumes: ["./frontend:/app"]
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow
+    command: mlflow server --host 0.0.0.0 --backend-store-uri /mlflow --default-artifact-root /mlflow
+    ports: ["5000:5000"]
+    volumes: ["mlflow_data:/mlflow"]
+
+volumes:
+  pgdata:
+  minio_data:
+  mlflow_data:
