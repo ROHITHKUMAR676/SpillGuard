@@ -14,7 +14,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({ error: { message: response.statusText } }));
-    throw new Error(payload.error?.message ?? response.statusText);
+    throw new Error(payload.error?.message ?? payload.detail?.message ?? response.statusText);
   }
   return response.json() as Promise<T>;
 }

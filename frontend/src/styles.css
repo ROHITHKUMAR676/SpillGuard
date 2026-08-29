@@ -2,14 +2,81 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --neutral-0: #ffffff;
+  --neutral-50: #f7f8fa;
+  --neutral-100: #eef0f3;
+  --neutral-200: #dde1e6;
+  --neutral-300: #c3c9d1;
+  --neutral-500: #6b7280;
+  --neutral-700: #374151;
+  --neutral-900: #111827;
+  --navy-50: #eef3fa;
+  --navy-500: #1d4e89;
+  --navy-700: #13355e;
+  --navy-900: #0b2545;
+  --status-success: #1b7a43;
+  --status-success-bg: #e6f4ea;
+  --status-running: #b5860b;
+  --status-running-bg: #fbf2dd;
+  --status-error: #b3261e;
+  --status-error-bg: #fbeae9;
+  --synthetic-flag: #6d4aaf;
+  --map-slick: #3a3a3a;
+  --map-source-heat-low: #eef3fa;
+  --map-source-heat-high: #0b2545;
+  --map-forecast: #b5860b;
+  --map-trajectory: #6b7280;
+  --map-vessel-top: #b3261e;
+  --map-vessel-shortlisted: #b5860b;
+}
+
 html,
 body,
 #root {
   min-height: 100%;
   margin: 0;
+  font-family: "Inter", "Noto Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--neutral-50);
+  color: var(--neutral-900);
 }
 
 button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--navy-500);
+  outline-offset: 2px;
+}
+
+.desktop-guard {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .desktop-app {
+    display: none;
+  }
+
+  .desktop-guard {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    text-align: center;
+    background: var(--neutral-50);
+    color: var(--neutral-700);
+  }
+}
+
+@keyframes stage-ring {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.stage-ring {
+  animation: stage-ring 2s linear infinite;
 }
