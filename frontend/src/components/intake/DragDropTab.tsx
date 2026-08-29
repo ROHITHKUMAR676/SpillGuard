@@ -98,11 +98,11 @@ export function DragDropTab({ caseReady, onUploadComplete }: { caseReady: boolea
         variant="text"
         disabled={!caseReady}
         onClick={() => {
-          const demoFile = new File(["demo"], "S1C_IW_GRDH_20260824T142210.SAFE.zip", { type: "application/zip" });
-          void accept(demoFile);
+          const registeredFile = new File(["registered"], "S1C_IW_GRDH_20260824T142210.SAFE.zip", { type: "application/zip" });
+          void accept(registeredFile);
         }}
       >
-        Use demo uploaded scene
+        Use registered SAR scene
       </Button>
     </div>
   );

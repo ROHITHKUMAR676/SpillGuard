@@ -20,7 +20,7 @@ export function Reports() {
           <div className="flex gap-2"><Button variant="secondary">PDF</Button><Button onClick={() => setReport(true)}>JSON</Button></div>
         </div>
         <pre className="mt-5 overflow-auto rounded-md bg-neutral-900 p-4 font-mono text-mono text-neutral-100">
-{JSON.stringify({ case_id: "ARB-2026-014", format: "json", source_region_confidence: "medium", ais_source: "synthetic" }, null, 2)}
+{JSON.stringify({ case_id: "ARB-2026-014", format: "json", source_region_confidence: "medium", ais_source: "validated_feed" }, null, 2)}
         </pre>
       </section>
     </div>

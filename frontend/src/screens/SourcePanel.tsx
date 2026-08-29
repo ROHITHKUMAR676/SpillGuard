@@ -1,6 +1,6 @@
 import { Button } from "../components/shared/Button";
 import { ConfidenceChip } from "../components/shared/ConfidenceChip";
-import { demoSource } from "../data/demo";
+import { operationalSource } from "../data/operational";
 
 export function SourcePanel() {
   return (
@@ -8,7 +8,7 @@ export function SourcePanel() {
       <section className="rounded-md border border-neutral-200 bg-neutral-0 p-6">
         <div className="flex items-center justify-between">
           <h1 className="text-display">Source Analysis</h1>
-          <ConfidenceChip value={demoSource.confidence} />
+          <ConfidenceChip value={operationalSource.confidence} />
         </div>
         <div className="mt-2 font-mono text-mono text-neutral-500">24 Aug 2026, 06:00 UTC - 25 Aug 2026, 18:00 UTC</div>
         <div className="mt-6 grid grid-cols-[360px_1fr] gap-6">

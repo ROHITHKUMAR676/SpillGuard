@@ -8,6 +8,7 @@ import { CaseList } from "./screens/CaseList";
 import { EvidenceExplorer } from "./screens/EvidenceExplorer";
 import { Login } from "./screens/Login";
 import { MapView } from "./screens/MapView";
+import { OperationalConsole } from "./screens/OperationalConsole";
 import { Reports } from "./screens/Reports";
 import { SourcePanel } from "./screens/SourcePanel";
 import { SpillPanel } from "./screens/SpillPanel";
@@ -17,7 +18,7 @@ import { VesselRanking } from "./screens/VesselRanking";
 const caseId = "ARB-2026-014";
 
 export default function App() {
-  const [route, setRoute] = useState(window.location.pathname === "/" ? "/dashboard" : window.location.pathname);
+  const [route, setRoute] = useState(window.location.pathname === "/" ? "/operations" : window.location.pathname);
 
   function navigate(path: string) {
     window.history.pushState({}, "", path);
@@ -32,7 +33,7 @@ export default function App() {
 
   if (route === "/login") return <><div className="desktop-guard">This console is optimized for larger screens. Please use a desktop or laptop display.</div><div className="desktop-app"><Login navigate={navigate} /></div></>;
 
-  const content = route === "/cases/new" ? <CaseIntake navigate={navigate} /> : route.includes("/timeline") ? <Timeline /> : route.includes("/spill") ? <SpillPanel /> : route.includes("/source") ? <SourcePanel /> : route.includes("/vessels/ves-") ? <EvidenceExplorer /> : route.includes("/vessels") ? <VesselRanking navigate={navigate} /> : route.includes("/reports") ? <Reports /> : route.includes("/audit") ? <AuditLog /> : route.includes("/cases/") ? <MapView /> : <CaseList navigate={navigate} />;
+  const content = route === "/operations" ? <OperationalConsole /> : route === "/cases/new" ? <CaseIntake navigate={navigate} /> : route.includes("/timeline") ? <Timeline /> : route.includes("/spill") ? <SpillPanel /> : route.includes("/source") ? <SourcePanel /> : route.includes("/vessels/ves-") ? <EvidenceExplorer /> : route.includes("/vessels") ? <VesselRanking navigate={navigate} /> : route.includes("/reports") ? <Reports /> : route.includes("/audit") ? <AuditLog /> : route.includes("/cases/") ? <MapView /> : route === "/dashboard" ? <CaseList navigate={navigate} /> : <OperationalConsole />;
 
   const inCase = route.includes("/cases/") && route !== "/cases/new";
   return (

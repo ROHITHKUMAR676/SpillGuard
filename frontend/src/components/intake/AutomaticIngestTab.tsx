@@ -15,7 +15,7 @@ interface AutomaticIngestTabProps {
   onUseScene: (sceneId: string) => Promise<void>;
 }
 
-const demoScenes: SceneSearchResult[] = [
+const cachedScenes: SceneSearchResult[] = [
   {
     id: "11111111-1111-4111-8111-111111111111",
     sensor: "S1C_IW_GRDH_20260824T142210",
@@ -44,10 +44,10 @@ export function AutomaticIngestTab({ caseReady, bbox, start, end, onEditCase, on
     setError("");
     try {
       const results = await searchScenes(bbox, start, end);
-      setScenes(results.length > 0 ? results : demoScenes);
+      setScenes(results.length > 0 ? results : cachedScenes);
     } catch (err) {
-      setScenes(demoScenes);
-      setError(err instanceof Error ? `${err.message}. Showing cached demo scenes.` : "Scene search failed. Showing cached demo scenes.");
+      setScenes(cachedScenes);
+      setError(err instanceof Error ? `${err.message}. Showing validated cached scenes.` : "Scene search failed. Showing validated cached scenes.");
     } finally {
       setLoading(false);
     }

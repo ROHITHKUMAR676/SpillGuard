@@ -21,7 +21,7 @@
   --status-running-bg: #fbf2dd;
   --status-error: #b3261e;
   --status-error-bg: #fbeae9;
-  --synthetic-flag: #6d4aaf;
+  --ais-source-flag: #4b5563;
   --map-slick: #3a3a3a;
   --map-source-heat-low: #eef3fa;
   --map-source-heat-high: #0b2545;
@@ -79,4 +79,69 @@ button:disabled {
 
 .stage-ring {
   animation: stage-ring 2s linear infinite;
+}
+
+@keyframes slick-mask-draw {
+  0% {
+    clip-path: inset(0 100% 100% 0);
+    opacity: 0.15;
+  }
+  45% {
+    clip-path: inset(0 0 70% 0);
+    opacity: 0.8;
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+  }
+}
+
+.slick-mask-draw {
+  animation: slick-mask-draw 2.2s ease-out both;
+  border-radius: 6px 18px 8px 14px;
+}
+
+@keyframes hindcast-contract {
+  from {
+    transform: scale(1.45);
+    opacity: 0.18;
+  }
+  to {
+    transform: scale(0.42);
+    opacity: 0.72;
+  }
+}
+
+.hindcast-ring {
+  animation: hindcast-contract 3.6s ease-in-out infinite alternate;
+  transform-origin: center;
+}
+
+@keyframes forecast-spread {
+  from {
+    transform: scale(0.38);
+    opacity: 0.58;
+  }
+  to {
+    transform: scale(1.1);
+    opacity: 0.18;
+  }
+}
+
+.forecast-spread {
+  animation: forecast-spread 4s ease-in-out infinite alternate;
+  transform-origin: center;
+}
+
+@keyframes ship-track {
+  from {
+    transform: translate(-6px, 4px);
+  }
+  to {
+    transform: translate(6px, -4px);
+  }
+}
+
+.ship-track {
+  animation: ship-track 5s ease-in-out infinite alternate;
 }

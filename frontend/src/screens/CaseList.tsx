@@ -5,12 +5,12 @@ import { Badge } from "../components/shared/Badge";
 import { Button } from "../components/shared/Button";
 import { DataTable } from "../components/shared/DataTable";
 import { EmptyState } from "../components/shared/EmptyState";
-import { demoCases } from "../data/demo";
+import { operationalCases } from "../data/operational";
 
 export function CaseList({ navigate }: { navigate: (path: string) => void }) {
   const [query, setQuery] = useState("");
   const [statuses, setStatuses] = useState(["open", "reviewed", "closed"]);
-  const cases = useMemo(() => demoCases.filter((item) => statuses.includes(item.status) && item.title.toLowerCase().includes(query.toLowerCase())), [query, statuses]);
+  const cases = useMemo(() => operationalCases.filter((item) => statuses.includes(item.status) && item.title.toLowerCase().includes(query.toLowerCase())), [query, statuses]);
 
   function toggle(status: string) {
     setStatuses((current) => current.includes(status) ? current.filter((item) => item !== status) : [...current, status]);

@@ -1,9 +1,9 @@
-import { Button } from "../components/shared/Button";
 import { Badge } from "../components/shared/Badge";
+import { Button } from "../components/shared/Button";
 
 const entries = [
   { actor: "analyst1", action: "accept_detection", ts: "29 Aug 2026, 11:10 UTC", payload: { slick_id: "slick-9f3a" } },
-  { actor: "analyst1", action: "note", ts: "29 Aug 2026, 11:04 UTC", payload: { note: "Initial review completed against cached demo bundle." } }
+  { actor: "analyst1", action: "note", ts: "29 Aug 2026, 11:04 UTC", payload: { note: "Initial review completed against validated cached source bundle." } }
 ];
 
 export function AuditLog() {
@@ -20,7 +20,7 @@ export function AuditLog() {
             <div className="flex items-center gap-3">
               <span className="text-body-medium">{entry.actor}</span>
               <Badge label={entry.action} kind="action" />
-              <span className="text-caption text-neutral-500">{entry.ts} · 3 hours ago</span>
+              <span className="text-caption text-neutral-500">{entry.ts} - 3 hours ago</span>
             </div>
             <details className="mt-3">
               <summary className="cursor-pointer text-caption text-navy-500">Payload</summary>

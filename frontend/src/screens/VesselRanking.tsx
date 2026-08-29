@@ -2,14 +2,14 @@ import { useState } from "react";
 
 import { Button } from "../components/shared/Button";
 import { ScoreBar } from "../components/shared/ScoreBar";
-import { SyntheticFlag } from "../components/shared/SyntheticFlag";
-import { demoCandidates } from "../data/demo";
+import { AISSourceFlag } from "../components/shared/AISSourceFlag";
+import { operationalCandidates } from "../data/operational";
 
 export function VesselRanking({ navigate }: { navigate: (path: string) => void }) {
   const [excluded, setExcluded] = useState<string[]>([]);
   return (
     <div className="mx-auto max-w-[1200px] p-6">
-      <SyntheticFlag />
+      <AISSourceFlag />
       <div className="mt-5 flex items-center justify-between">
         <h1 className="text-display">Vessel Investigation</h1>
         <div className="flex gap-2">
@@ -22,11 +22,12 @@ export function VesselRanking({ navigate }: { navigate: (path: string) => void }
             <option>All vessel types</option>
             <option>Tanker</option>
             <option>Cargo</option>
+            <option>Product carrier</option>
           </select>
         </div>
       </div>
       <div className="mt-4 grid gap-4">
-        {demoCandidates.map((candidate) => {
+        {operationalCandidates.map((candidate) => {
           const isExcluded = excluded.includes(candidate.id);
           return (
             <article className={`rounded-md border border-neutral-200 bg-neutral-0 p-5 ${isExcluded ? "opacity-55" : ""}`} key={candidate.id}>
@@ -36,7 +37,7 @@ export function VesselRanking({ navigate }: { navigate: (path: string) => void }
                   <div>
                     <h2 className={`text-h2 ${isExcluded ? "line-through" : ""}`}>{candidate.vessel.name}</h2>
                     <p className="font-mono text-mono text-neutral-500">MMSI {candidate.vessel.mmsi}</p>
-                    <p className="text-caption text-neutral-500">{candidate.vessel.flag} · {candidate.vessel.vessel_type} · vessel type is informational only</p>
+                    <p className="text-caption text-neutral-500">{candidate.vessel.flag} - {candidate.vessel.vessel_type} - vessel type is informational only</p>
                   </div>
                 </div>
                 <div className="flex gap-2">

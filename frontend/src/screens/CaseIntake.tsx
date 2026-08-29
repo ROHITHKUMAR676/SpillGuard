@@ -7,7 +7,7 @@ import { TabStrip } from "../components/layout/TabStrip";
 import { Button } from "../components/shared/Button";
 import { ErrorState } from "../components/shared/ErrorState";
 import { Stage, StageStepper } from "../components/shared/StageStepper";
-import { demoCase } from "../data/demo";
+import { operationalCase } from "../data/operational";
 import { MapCanvas } from "../map/MapCanvas";
 import { createDefaultStages, usePipelineStore } from "../store/pipelineStore";
 import type { Case } from "../types/case";
@@ -18,7 +18,7 @@ type IntakeTab = "Automatic Ingestion" | "Upload Scene";
 type PipelineJobType = "detect" | "drift" | "vessel_analysis";
 
 const intakeTabs: IntakeTab[] = ["Automatic Ingestion", "Upload Scene"];
-const defaultAoi = demoCase.aoi;
+const defaultAoi = operationalCase.aoi;
 
 export function CaseIntake({ navigate }: { navigate: (path: string) => void }) {
   const formRef = useRef<HTMLElement | null>(null);

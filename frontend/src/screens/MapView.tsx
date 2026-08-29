@@ -1,6 +1,6 @@
-import { demoCase } from "../data/demo";
+import { operationalCase } from "../data/operational";
 import { MapCanvas } from "../map/MapCanvas";
 
 export function MapView() {
-  return <MapCanvas caseAoi={demoCase.aoi as GeoJSON.Polygon} />;
+  return <MapCanvas caseAoi={operationalCase.aoi as GeoJSON.Polygon} />;
 }
