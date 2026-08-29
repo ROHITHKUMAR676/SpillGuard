@@ -15,7 +15,7 @@ const segments: Array<[keyof SubScores, string, string]> = [
 export function ScoreBar({ scores, overall }: { scores: SubScores; overall: number }) {
   const total = Math.max(segments.reduce((sum, [key]) => sum + scores[key], 0), 1);
   return (
-    <div className="grid gap-3 xl:grid-cols-[1fr_180px]">
+    <div className="grid gap-3">
       <div>
         <div className="flex h-3 overflow-hidden rounded-sm bg-neutral-100" aria-label="Sub-score breakdown">
           {segments.map(([key, label, color]) => (
@@ -28,14 +28,18 @@ export function ScoreBar({ scores, overall }: { scores: SubScores; overall: numb
         </div>
         <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-caption text-neutral-500 xl:grid-cols-3">
           {segments.map(([key, label]) => (
-            <span key={key}>
-              {label}: <span className="font-mono text-neutral-700">{scores[key].toFixed(0)}</span>
+            <span className="min-w-0" key={key}>
+              <span className="block truncate">{label}</span>
+              <span className="block font-mono text-neutral-700">{scores[key].toFixed(0)}</span>
             </span>
           ))}
         </div>
       </div>
-      <div>
-        <div className="font-mono text-[28px] leading-8 font-semibold text-neutral-900">{overall.toFixed(0)}</div>
+      <div className="rounded-sm bg-neutral-50 p-3">
+        <div className="flex items-start justify-between gap-3">
+          <span className="text-caption text-neutral-500">Overall score</span>
+          <span className="font-mono text-[28px] leading-8 font-semibold text-neutral-900">{overall.toFixed(0)}</span>
+        </div>
         <p className="mt-1 text-caption text-neutral-500">{OVERALL_SCORE_CAPTION}</p>
       </div>
     </div>

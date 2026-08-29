@@ -23,9 +23,10 @@
   --status-error-bg: #fbeae9;
   --ais-source-flag: #4b5563;
   --map-slick: #3a3a3a;
+  --map-hindcast: #17324d;
   --map-source-heat-low: #eef3fa;
   --map-source-heat-high: #0b2545;
-  --map-forecast: #b5860b;
+  --map-forecast: #5e4a1f;
   --map-trajectory: #6b7280;
   --map-vessel-top: #b3261e;
   --map-vessel-shortlisted: #b5860b;
@@ -34,6 +35,7 @@
 html,
 body,
 #root {
+  height: 100%;
   min-height: 100%;
   margin: 0;
   font-family: "Inter", "Noto Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -83,53 +85,66 @@ button:disabled {
 
 @keyframes slick-mask-draw {
   0% {
-    clip-path: inset(0 100% 100% 0);
+    clip-path: polygon(13% 38%, 13% 38%, 13% 38%, 13% 38%, 13% 38%, 13% 38%, 13% 38%);
     opacity: 0.15;
   }
   45% {
-    clip-path: inset(0 0 70% 0);
+    clip-path: polygon(13% 38%, 27% 11%, 58% 18%, 58% 18%, 49% 48%, 20% 74%, 20% 74%);
     opacity: 0.8;
   }
   100% {
-    clip-path: inset(0 0 0 0);
+    clip-path: polygon(13% 38%, 27% 11%, 58% 18%, 88% 34%, 76% 72%, 49% 91%, 20% 74%);
     opacity: 1;
   }
 }
 
 .slick-mask-draw {
   animation: slick-mask-draw 2.2s ease-out both;
-  border-radius: 6px 18px 8px 14px;
 }
 
-@keyframes hindcast-contract {
-  from {
-    transform: scale(1.45);
+.slick-irregular {
+  clip-path: polygon(13% 38%, 27% 11%, 58% 18%, 88% 34%, 76% 72%, 49% 91%, 20% 74%);
+}
+
+@keyframes hindcast-slick-path {
+  0% {
+    transform: translate(70px, 42px) scale(1.55);
     opacity: 0.18;
   }
-  to {
-    transform: scale(0.42);
+  50% {
+    transform: translate(-12px, -8px) scale(0.78);
+    opacity: 0.36;
+  }
+  100% {
+    transform: translate(-96px, -62px) scale(0.36);
     opacity: 0.72;
   }
 }
 
-.hindcast-ring {
-  animation: hindcast-contract 3.6s ease-in-out infinite alternate;
+.hindcast-slick-path {
+  animation: hindcast-slick-path 4.2s ease-in-out infinite alternate;
+  background: rgba(23, 50, 77, 0.2);
+  border-color: var(--map-hindcast);
+  clip-path: polygon(11% 42%, 31% 13%, 63% 18%, 90% 36%, 78% 69%, 50% 91%, 18% 75%);
   transform-origin: center;
 }
 
 @keyframes forecast-spread {
   from {
-    transform: scale(0.38);
-    opacity: 0.58;
+    transform: translate(0, 0) scale(0.45);
+    opacity: 0.5;
   }
   to {
-    transform: scale(1.1);
+    transform: translate(86px, 48px) scale(1.65);
     opacity: 0.18;
   }
 }
 
 .forecast-spread {
   animation: forecast-spread 4s ease-in-out infinite alternate;
+  background: rgba(94, 74, 31, 0.18);
+  border-color: var(--map-forecast);
+  clip-path: polygon(10% 43%, 28% 13%, 62% 21%, 92% 39%, 82% 74%, 48% 94%, 17% 76%);
   transform-origin: center;
 }
 

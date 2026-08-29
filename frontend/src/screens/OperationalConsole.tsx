@@ -12,7 +12,7 @@ import {
   Ship,
   UploadCloud
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { DragDropTab } from "../components/intake/DragDropTab";
 import { Button } from "../components/shared/Button";
@@ -127,16 +127,16 @@ const rankedVessels: RankedVessel[] = [
 export function OperationalConsole() {
   const [mode, setMode] = useState<IntakeMode>("automatic");
   const [activeIndex, setActiveIndex] = useState(0);
-  const [running, setRunning] = useState(false);
+  const [running, setRunning] = useState(true);
   const stages = mode === "automatic" ? automaticStages : uploadStages;
   const activeStage = stages[activeIndex];
   const progress = useMemo(() => Math.round(((activeIndex + 1) / stages.length) * 100), [activeIndex, stages.length]);
 
-  function startAutomatic() {
-    setMode("automatic");
-    setActiveIndex(0);
-    setRunning(true);
-  }
+  useEffect(() => {
+    if (mode !== "automatic" || !running || activeIndex >= stages.length - 1) return;
+    const timer = window.setTimeout(() => setActiveIndex((current) => Math.min(current + 1, stages.length - 1)), 4200);
+    return () => window.clearTimeout(timer);
+  }, [activeIndex, mode, running, stages.length]);
 
   async function startUpload() {
     setMode("upload");
@@ -147,7 +147,7 @@ export function OperationalConsole() {
   function selectMode(nextMode: IntakeMode) {
     setMode(nextMode);
     setActiveIndex(0);
-    setRunning(false);
+    setRunning(nextMode === "automatic");
   }
 
   function advance() {
@@ -181,13 +181,7 @@ export function OperationalConsole() {
               <div className="flex items-center gap-2 text-body-medium text-neutral-900">
                 <Radar size={18} /> SAR scene watch
               </div>
-              <dl className="mt-3 space-y-2 text-caption">
-                <FactLine label="Maritime window" value="India EEZ" />
-                <FactLine label="Latest footprint" value="72.60,18.50 to 73.50,19.30" />
-                <FactLine label="Scene time" value="24 Aug 2026 14:22 IST" />
-                <FactLine label="Next action" value="Validate EEZ intersection" />
-              </dl>
-              <Button className="mt-4 w-full" onClick={startAutomatic}>Run ingestion pipeline</Button>
+              <AutomatedSceneStatus activeStage={activeStage} activeIndex={activeIndex} complete={activeIndex === stages.length - 1} />
             </>
           ) : (
             <>
@@ -310,6 +304,42 @@ function ModeButton({ active, icon, label, onClick }: { active: boolean; icon: R
       <span>{label}</span>
       {active && <ChevronRight className="ml-auto" size={16} />}
     </button>
+  );
+}
+
+function AutomatedSceneStatus({ activeStage, activeIndex, complete }: { activeStage: WorkflowStage; activeIndex: number; complete: boolean }) {
+  const queue = [
+    { id: "S1C_20260824T142210", result: complete ? "Ranked lead ready" : activeStage.status, tone: complete ? "error" : "running" },
+    { id: "S1C_20260824T101505", result: "Outside India EEZ", tone: "neutral" },
+    { id: "S1A_20260823T231040", result: "No oil slick detected", tone: "neutral" }
+  ];
+
+  return (
+    <div className="mt-3">
+      <dl className="space-y-2 text-caption">
+        <FactLine label="Maritime window" value="India EEZ" />
+        <FactLine label="Current scene" value="S1C_20260824T142210" />
+        <FactLine label="Scene time" value="24 Aug 2026 14:22 IST" />
+        <FactLine label="Running stage" value={complete ? "Ranking complete" : `${activeIndex + 1}. ${activeStage.label}`} />
+      </dl>
+      <div className="mt-3 space-y-2">
+        {queue.map((scene, index) => (
+          <div className="flex items-center justify-between gap-3 rounded-sm border border-neutral-200 bg-neutral-0 px-3 py-2 text-caption" key={scene.id}>
+            <span className="font-mono text-neutral-700">{scene.id}</span>
+            <span className={scene.tone === "error" ? "font-medium text-status-error" : scene.tone === "running" ? "text-status-running" : "text-neutral-500"}>
+              {scene.result}
+            </span>
+            {index === 0 && !complete && <span className="h-2 w-2 rounded-full bg-status-running" />}
+          </div>
+        ))}
+      </div>
+      {complete && (
+        <div className="mt-3 rounded-sm border border-status-error bg-status-error-bg px-3 py-2 text-caption">
+          <div className="font-medium text-status-error">Suspect 1: MV Samudra Prerna</div>
+          <div className="mt-1 font-mono text-neutral-700">MMSI 419000111 - score 78</div>
+        </div>
+      )}
+    </div>
   );
 }
 

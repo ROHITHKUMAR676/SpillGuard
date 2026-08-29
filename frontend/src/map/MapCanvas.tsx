@@ -1,7 +1,7 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { Ship } from "lucide-react";
-import maplibregl, { Map } from "maplibre-gl";
+import maplibregl, { Map, type StyleSpecification } from "maplibre-gl";
 import { useEffect, useRef } from "react";
 
 import { DataSourceModeBadge } from "../components/shared/DataSourceModeBadge";
@@ -20,6 +20,22 @@ const sceneFootprint: GeoJSON.Polygon = {
 const indiaEezOutline: GeoJSON.Polygon = {
   type: "Polygon",
   coordinates: [[[66.5, 5.5], [94.5, 5.5], [94.5, 24.5], [66.5, 24.5], [66.5, 5.5]]]
+};
+
+const indiaLandContext: GeoJSON.MultiPolygon = {
+  type: "MultiPolygon",
+  coordinates: [
+    [[
+      [68.1, 23.8], [69.1, 22.7], [70.1, 21.3], [70.4, 20.1], [71.0, 18.8],
+      [72.0, 17.0], [72.7, 15.7], [73.3, 14.5], [74.2, 13.2], [74.8, 12.1],
+      [75.6, 10.7], [76.8, 8.5], [77.8, 8.1], [78.9, 9.3], [79.8, 11.6],
+      [80.5, 13.4], [80.2, 15.7], [81.1, 17.6], [82.4, 18.8], [84.0, 19.7],
+      [85.8, 20.7], [87.3, 21.6], [88.8, 22.1], [89.2, 23.3], [88.0, 24.2],
+      [85.8, 24.7], [82.8, 24.4], [79.5, 24.9], [76.8, 24.5], [74.0, 24.1],
+      [71.2, 24.6], [68.1, 23.8]
+    ]],
+    [[[79.7, 9.7], [80.4, 8.9], [81.1, 7.7], [81.7, 6.9], [81.3, 6.0], [80.3, 5.9], [79.7, 6.8], [79.4, 8.3], [79.7, 9.7]]]
+  ]
 };
 
 const vesselFeatures: GeoJSON.FeatureCollection<GeoJSON.Point> = {
@@ -47,14 +63,47 @@ const trackFeatures: GeoJSON.FeatureCollection<GeoJSON.LineString> = {
 const phaseLayers: Record<OperationPhase, string[]> = {
   monitoring: ["india-eez-fill", "india-eez-line"],
   eez: ["india-eez-fill", "india-eez-line", "scene-footprint-fill", "scene-footprint-line"],
-  detection: ["scene-footprint-line", "slick-fill", "slick-line", "slick-centroid"],
-  hindcast: ["slick-fill", "slick-line", "source-fill", "source-line", "hindcast-line"],
-  forecast: ["slick-fill", "slick-line", "source-fill", "source-line", "forecast-fill", "forecast-line"],
-  ais: ["slick-fill", "slick-line", "source-fill", "source-line", "hindcast-line", "vessel-tracks", "vessel-markers"],
-  ranking: ["slick-fill", "slick-line", "source-fill", "source-line", "hindcast-line", "vessel-tracks", "vessel-markers"]
+  detection: ["india-eez-fill", "india-eez-line", "scene-footprint-line", "slick-fill", "slick-line", "slick-centroid"],
+  hindcast: ["india-eez-fill", "india-eez-line", "slick-fill", "slick-line", "source-fill", "source-line", "hindcast-line"],
+  forecast: ["india-eez-fill", "india-eez-line", "slick-fill", "slick-line", "source-fill", "source-line", "forecast-fill", "forecast-line"],
+  ais: ["india-eez-fill", "india-eez-line", "slick-fill", "slick-line", "source-fill", "source-line", "hindcast-line", "vessel-tracks", "vessel-markers"],
+  ranking: ["india-eez-fill", "india-eez-line", "slick-fill", "slick-line", "source-fill", "source-line", "hindcast-line", "vessel-tracks", "vessel-markers"]
 };
 
-export function MapCanvas({ caseAoi, embedded = false, phase = "ranking" }: { caseAoi?: GeoJSON.Polygon; embedded?: boolean; phase?: OperationPhase }) {
+const investigationMapStyle: StyleSpecification = {
+  version: 8,
+  sources: {
+    "osm-raster": {
+      type: "raster",
+      tiles: [
+        "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      ],
+      tileSize: 256,
+      attribution: "OpenStreetMap contributors"
+    }
+  },
+  layers: [
+    {
+      id: "background",
+      type: "background",
+      paint: { "background-color": "#E9EEF3" }
+    },
+    {
+      id: "base-map",
+      type: "raster",
+      source: "osm-raster",
+      paint: {
+        "raster-opacity": 0.72,
+        "raster-saturation": -0.45,
+        "raster-contrast": -0.08
+      }
+    }
+  ]
+};
+
+export function MapCanvas({ caseAoi, embedded = false, phase = "eez" }: { caseAoi?: GeoJSON.Polygon; embedded?: boolean; phase?: OperationPhase }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<Map | null>(null);
 
@@ -62,15 +111,16 @@ export function MapCanvas({ caseAoi, embedded = false, phase = "ranking" }: { ca
     if (!containerRef.current || mapRef.current) return;
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-      center: [73.0, 18.85],
-      zoom: 8.2
+      style: investigationMapStyle,
+      center: [80.5, 14.8],
+      zoom: 4.3
     });
     mapRef.current = map;
+    window.requestAnimationFrame(() => map.resize());
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     map.on("load", () => {
       addLayers(map, caseAoi);
-      fitPhase(map, phase, caseAoi);
+      fitPhase(map, phase);
       setLayerVisibility(map, phase);
     });
     return () => {
@@ -82,7 +132,7 @@ export function MapCanvas({ caseAoi, embedded = false, phase = "ranking" }: { ca
   useEffect(() => {
     if (!mapRef.current?.loaded()) return;
     setLayerVisibility(mapRef.current, phase);
-    fitPhase(mapRef.current, phase, caseAoi);
+    fitPhase(mapRef.current, phase);
   }, [phase, caseAoi]);
 
   return (
@@ -107,9 +157,13 @@ export function MapCanvas({ caseAoi, embedded = false, phase = "ranking" }: { ca
 }
 
 function addLayers(map: Map, caseAoi?: GeoJSON.Polygon) {
+  map.addSource("india-land-context", { type: "geojson", data: featureMultiPolygon(indiaLandContext) });
+  map.addLayer({ id: "india-land-fill", type: "fill", source: "india-land-context", paint: { "fill-color": "#FFFFFF", "fill-opacity": 0.78 } });
+  map.addLayer({ id: "india-land-line", type: "line", source: "india-land-context", paint: { "line-color": "#9CA3AF", "line-width": 1.2 } });
+
   map.addSource("india-eez", { type: "geojson", data: featurePolygon(indiaEezOutline) });
-  map.addLayer({ id: "india-eez-fill", type: "fill", source: "india-eez", paint: { "fill-color": "#EEF3FA", "fill-opacity": 0.18 } });
-  map.addLayer({ id: "india-eez-line", type: "line", source: "india-eez", paint: { "line-color": "#1D4E89", "line-width": 2, "line-dasharray": [2, 2] } });
+  map.addLayer({ id: "india-eez-fill", type: "fill", source: "india-eez", paint: { "fill-color": "#DDEAF7", "fill-opacity": 0.34 } }, "india-land-fill");
+  map.addLayer({ id: "india-eez-line", type: "line", source: "india-eez", paint: { "line-color": "#1D4E89", "line-width": 2.8, "line-dasharray": [2, 2] } });
 
   map.addSource("case-aoi", { type: "geojson", data: featurePolygon(caseAoi ?? operationalCase.aoi as GeoJSON.Polygon) });
   map.addLayer({ id: "case-aoi-line", type: "line", source: "case-aoi", paint: { "line-color": "#1D4E89", "line-width": 1.5, "line-dasharray": [1, 1] } });
@@ -126,15 +180,15 @@ function addLayers(map: Map, caseAoi?: GeoJSON.Polygon) {
   map.addLayer({ id: "slick-centroid", type: "circle", source: "slick-centroid-source", paint: { "circle-color": "#FFFFFF", "circle-radius": 4, "circle-stroke-color": "#111827", "circle-stroke-width": 2 } });
 
   map.addSource("source-region", { type: "geojson", data: featurePolygon(operationalSource.probable_source_region as GeoJSON.Polygon) });
-  map.addLayer({ id: "source-fill", type: "fill", source: "source-region", paint: { "fill-color": "#1D4E89", "fill-opacity": 0.24 } });
-  map.addLayer({ id: "source-line", type: "line", source: "source-region", paint: { "line-color": "#0B2545", "line-width": 2.5 } });
+  map.addLayer({ id: "source-fill", type: "fill", source: "source-region", paint: { "fill-color": "#17324D", "fill-opacity": 0.22 } });
+  map.addLayer({ id: "source-line", type: "line", source: "source-region", paint: { "line-color": "#17324D", "line-width": 2.5 } });
 
   map.addSource("hindcast", { type: "geojson", data: featureLine([[73.05, 18.92], [72.99, 18.87], [72.91, 18.82], [72.79, 18.76]], {}) });
-  map.addLayer({ id: "hindcast-line", type: "line", source: "hindcast", paint: { "line-color": "#0B2545", "line-width": 3, "line-dasharray": [2, 1] } });
+  map.addLayer({ id: "hindcast-line", type: "line", source: "hindcast", paint: { "line-color": "#17324D", "line-width": 3, "line-dasharray": [2, 1] } });
 
   map.addSource("forecast", { type: "geojson", data: featurePolygon(operationalForecast.contours[2].polygon as GeoJSON.Polygon) });
-  map.addLayer({ id: "forecast-fill", type: "fill", source: "forecast", paint: { "fill-color": "#B5860B", "fill-opacity": 0.2 } });
-  map.addLayer({ id: "forecast-line", type: "line", source: "forecast", paint: { "line-color": "#B5860B", "line-width": 2.5 } });
+  map.addLayer({ id: "forecast-fill", type: "fill", source: "forecast", paint: { "fill-color": "#5E4A1F", "fill-opacity": 0.2 } });
+  map.addLayer({ id: "forecast-line", type: "line", source: "forecast", paint: { "line-color": "#5E4A1F", "line-width": 2.5 } });
 
   map.addSource("vessel-tracks-source", { type: "geojson", data: trackFeatures });
   map.addLayer({
@@ -171,35 +225,25 @@ function setLayerVisibility(map: Map, phase: OperationPhase) {
   });
 }
 
-function fitPhase(map: Map, phase: OperationPhase, caseAoi?: GeoJSON.Polygon) {
-  if (phase === "monitoring") {
-    map.fitBounds(INDIA_EEZ_BOUNDS, { padding: 50, animate: false });
-    return;
-  }
-  const geometry = phase === "eez" ? sceneFootprint : caseAoi ?? operationalCase.aoi as GeoJSON.Polygon;
-  const coords = geometry.coordinates[0];
-  const bounds = coords.reduce(
-    (b, coord) => b.extend(coord as [number, number]),
-    new maplibregl.LngLatBounds(coords[0] as [number, number], coords[0] as [number, number])
-  );
-  map.fitBounds(bounds, { padding: phase === "ais" || phase === "ranking" ? 130 : 90, animate: false });
+function fitPhase(map: Map, phase: OperationPhase) {
+  map.fitBounds(INDIA_EEZ_BOUNDS, { padding: phase === "monitoring" || phase === "eez" ? 50 : 70, animate: false });
 }
 
 function StageOverlay({ phase }: { phase: OperationPhase }) {
   return (
     <div className="pointer-events-none absolute inset-0 z-10">
       {(phase === "detection" || phase === "hindcast" || phase === "forecast" || phase === "ais" || phase === "ranking") && (
-        <div className={`slick-mask-draw absolute left-[49%] top-[45%] h-24 w-36 border-2 border-neutral-900 bg-neutral-900/30 ${phase === "detection" ? "" : "opacity-70"}`} />
+        <div className={`slick-mask-draw slick-irregular absolute left-[49%] top-[45%] h-24 w-36 border-2 border-neutral-900 bg-neutral-900/30 ${phase === "detection" ? "" : "opacity-70"}`} />
       )}
       {phase === "hindcast" && (
         <>
-          <div className="hindcast-ring absolute left-[42%] top-[42%] h-60 w-60 rounded-full border-2 border-navy-500 bg-navy-50/20" />
+          <div className="hindcast-slick-path absolute left-[50%] top-[46%] h-28 w-44 border-2" />
           <div className="absolute left-[44%] top-[50%] rounded-sm bg-neutral-0 px-2 py-1 text-caption font-medium text-navy-900 shadow-elevation-1">Probable source: 24 Aug 06:00-25 Aug 18:00</div>
         </>
       )}
       {phase === "forecast" && (
         <>
-          <div className="forecast-spread absolute left-[43%] top-[39%] h-56 w-80 rounded-full border-2 border-status-running bg-status-running/10" />
+          <div className="forecast-spread absolute left-[48%] top-[44%] h-28 w-44 border-2" />
           <div className="absolute left-[54%] top-[58%] rounded-sm bg-neutral-0 px-2 py-1 font-mono text-caption text-neutral-900 shadow-elevation-1">Forecast +48h</div>
         </>
       )}
@@ -245,6 +289,10 @@ function TimelineStrip({ phase }: { phase: OperationPhase }) {
 }
 
 function featurePolygon(geometry: GeoJSON.Polygon): GeoJSON.Feature<GeoJSON.Polygon> {
+  return { type: "Feature", properties: {}, geometry };
+}
+
+function featureMultiPolygon(geometry: GeoJSON.MultiPolygon): GeoJSON.Feature<GeoJSON.MultiPolygon> {
   return { type: "Feature", properties: {}, geometry };
 }
 

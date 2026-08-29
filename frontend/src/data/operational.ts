@@ -22,7 +22,7 @@ export const operationalCases: Case[] = [
 export const operationalSlick: OilSlick = {
   id: "slick-9f3a",
   scene_id: "scene-s1c-operational",
-  geometry: { type: "MultiPolygon", coordinates: [[[[72.95, 18.85], [73.14, 18.85], [73.14, 18.98], [72.95, 18.98], [72.95, 18.85]]]] },
+  geometry: { type: "MultiPolygon", coordinates: [[[[72.92, 18.88], [72.98, 18.83], [73.09, 18.85], [73.16, 18.91], [73.12, 19.0], [73.02, 19.03], [72.94, 18.98], [72.9, 18.92], [72.92, 18.88]]]] },
   area_km2: 142.4,
   perimeter_km: 52.1,
   centroid: { type: "Point", coordinates: [73.045, 18.915] },
@@ -36,7 +36,7 @@ export const operationalSlick: OilSlick = {
 export const operationalSource: SourceHypothesis = {
   id: "source-hypothesis-operational",
   drift_run_id: "drift-run-operational",
-  probable_source_region: { type: "Polygon", coordinates: [[[72.72, 18.68], [72.92, 18.68], [72.92, 18.88], [72.72, 18.88], [72.72, 18.68]]] },
+  probable_source_region: { type: "Polygon", coordinates: [[[72.7, 18.69], [72.82, 18.65], [72.93, 18.73], [72.9, 18.85], [72.78, 18.88], [72.69, 18.79], [72.7, 18.69]]] },
   time_window_start: "2026-08-24T06:00:00Z",
   time_window_end: "2026-08-25T18:00:00Z",
   confidence: "medium"
@@ -47,7 +47,7 @@ export const operationalForecast: ForwardForecast = {
   contours: [50, 80, 95].map((percentile) => ({
     horizon_hours: 72,
     percentile: percentile as 50 | 80 | 95,
-    polygon: { type: "Polygon", coordinates: [[[72.86, 18.72], [73.38, 18.72], [73.38, 19.22], [72.86, 19.22], [72.86, 18.72]]] }
+    polygon: { type: "Polygon", coordinates: [[[72.96, 18.82], [73.24, 18.74], [73.48, 18.91], [73.43, 19.17], [73.22, 19.32], [72.91, 19.2], [72.78, 18.98], [72.96, 18.82]]] }
   }))
 };
 
