@@ -340,8 +340,9 @@ button:disabled {
 }
 
 .leaflet-hindcast-flow {
-  stroke-dasharray: 12 11;
-  animation: current-flow 2.8s linear infinite;
+  stroke-dasharray: 2 14;
+  stroke-linecap: round;
+  animation: current-flow 3.4s linear infinite;
 }
 
 .leaflet-hindcast-shadow {
@@ -350,8 +351,8 @@ button:disabled {
 
 .leaflet-source-save {
   animation:
-    source-save 3.6s ease-in-out both,
-    source-breathe 2.6s ease-in-out 3.6s infinite;
+    source-save 4.2s ease-in-out both,
+    source-breathe 2.6s ease-in-out 4.2s infinite;
 }
 
 .leaflet-forecast-spread {
@@ -366,8 +367,8 @@ button:disabled {
 .leaflet-time-chip {
   display: grid;
   place-items: center;
-  min-width: 50px;
-  height: 22px;
+  min-width: 56px;
+  height: 24px;
   border-radius: 999px;
   border: 1px solid currentColor;
   background: rgba(255, 255, 255, 0.94);
@@ -379,6 +380,25 @@ button:disabled {
     box-shadow 0.2s ease,
     transform 0.2s ease;
   animation: time-chip-pop 0.7s ease both;
+}
+
+.leaflet-moving-slick-copy {
+  position: relative;
+  width: 42px;
+  height: 30px;
+  display: block;
+  opacity: 0;
+  filter: drop-shadow(0 5px 10px rgba(37, 99, 235, 0.28));
+  animation: slick-copy-backtrack 6.6s cubic-bezier(0.33, 0, 0.16, 1) infinite;
+}
+
+.leaflet-moving-slick-copy::before {
+  content: "";
+  position: absolute;
+  inset: 3px 4px;
+  border: 2px solid #1D4ED8;
+  background: rgba(96, 165, 250, 0.24);
+  clip-path: polygon(12% 38%, 30% 8%, 72% 16%, 92% 42%, 76% 82%, 36% 92%, 8% 68%);
 }
 
 .leaflet-time-chip:hover {
@@ -492,18 +512,18 @@ button:disabled {
 
 @keyframes current-flow {
   to {
-    stroke-dashoffset: -46;
+    stroke-dashoffset: -64;
   }
 }
 
 @keyframes source-save {
   0% {
     opacity: 0;
-    transform: scale(0.68);
+    filter: drop-shadow(0 0 0 rgba(37, 99, 235, 0));
   }
   72%, 100% {
     opacity: 1;
-    transform: scale(1);
+    filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.34));
   }
 }
 
@@ -543,6 +563,32 @@ button:disabled {
   }
   to {
     stroke-dashoffset: 0;
+  }
+}
+
+@keyframes slick-copy-backtrack {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(1);
+  }
+  12% {
+    opacity: 0.85;
+  }
+  38% {
+    opacity: 0.9;
+    transform: translate(var(--move-x-1), var(--move-y-1)) scale(0.72);
+  }
+  64% {
+    opacity: 0.9;
+    transform: translate(var(--move-x-2), var(--move-y-2)) scale(0.48);
+  }
+  88% {
+    opacity: 0.88;
+    transform: translate(var(--move-x-3), var(--move-y-3)) scale(0.28);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--move-x-3), var(--move-y-3)) scale(0.28);
   }
 }
 

@@ -65,8 +65,8 @@ const automaticStages: WorkflowStage[] = [
   {
     id: "hindcast",
     label: "Euler hindcast",
-    detail: "Current, wind, and drift forcing animate slick copies backward at time intervals, contracting each copy toward the saved source location.",
-    metric: "24 Aug 06:00-25 Aug 18:00",
+    detail: "Current, wind, and drift forcing animate a copy of the detected slick backward through T-12h, T-24h, and T-48h positions until it reaches the small irregular source polygon.",
+    metric: "T-12h / T-24h / T-48h",
     status: "Source location saved"
   },
   {
@@ -351,7 +351,7 @@ function DriftCallout({ phase }: { phase: OperationPhase }) {
       <p className="mt-2 text-caption text-neutral-700">
         {isForecast
           ? "Forward copies expand from the detected slick at +12h, +24h, +36h, and +48h. Hover the spread envelopes to inspect each interval."
-          : "Blue slick copies contract backward at time intervals until the probable offshore source region is saved on the map."}
+          : "A copy of the detected slick moves backward through T-12h, T-24h, and T-48h positions, shrinking into the probable offshore source polygon."}
       </p>
     </section>
   );
@@ -413,7 +413,7 @@ function StageFacts({ phase, mode }: { phase: OperationPhase; mode: IntakeMode }
     monitoring: [["Input", "Automatic SAR feed"], ["Sensor", "Sentinel-1"], ["Polling state", "Ready for acquisition"]],
     eez: [["Jurisdiction", "India EEZ"], ["Validation", "Footprint-coordinate intersection"], ["Decision", "Forward to ML detection"]],
     detection: [["Slick area", "142.4 km2"], ["Perimeter", "52.1 km"], ["Centroid", "68.940,16.180"], ["Mask confidence", "0.82"]],
-    hindcast: [["Model", "Euler drift"], ["Forcing", "Ocean currents + wind"], ["Source region", "67.98,15.57 to 68.28,15.82"], ["Release window", "24 Aug 06:00-25 Aug 18:00"]],
+    hindcast: [["Model", "Euler drift"], ["Forcing", "Ocean currents + wind"], ["Source region", "67.47,15.34 to 67.86,15.82"], ["Backtrack", "T-12h, T-24h, T-48h"]],
     forecast: [["Horizon", "48 hours"], ["Intervals", "+12h, +24h, +36h, +48h"], ["Use", "Response and monitoring priority"]],
     ais: [["AIS window", "Hindcast release interval"], ["Scanned vessels", "5"], ["Shown as suspects", "Top 3 only in ranking"], ["Anomalies", "Speed, loitering, timing"]],
     ranking: [["Model", "Attribution LLM"], ["Score inputs", "Spatial, temporal, trajectory, behaviour, source, AIS continuity"], ["Output", "Ranked investigative leads"]]

@@ -7,7 +7,7 @@ export const operationalCase: Case = {
   id: "ARB-2026-014",
   title: "Arabian Sea AOI-1",
   status: "open",
-  aoi: { type: "Polygon", coordinates: [[[67.75, 15.28], [69.65, 15.28], [69.65, 16.92], [67.75, 16.92], [67.75, 15.28]]] },
+  aoi: { type: "Polygon", coordinates: [[[67.25, 15.05], [70.55, 15.05], [70.55, 17.35], [67.25, 17.35], [67.25, 15.05]]] },
   time_window_start: "2026-08-20T00:00:00Z",
   time_window_end: "2026-08-27T00:00:00Z",
   created_at: "2026-08-29T10:30:00Z"
@@ -36,7 +36,7 @@ export const operationalSlick: OilSlick = {
 export const operationalSource: SourceHypothesis = {
   id: "source-hypothesis-operational",
   drift_run_id: "drift-run-operational",
-  probable_source_region: { type: "Polygon", coordinates: [[[68.02, 15.64], [68.12, 15.57], [68.25, 15.62], [68.28, 15.74], [68.17, 15.82], [68.04, 15.77], [67.98, 15.69], [68.02, 15.64]]] },
+  probable_source_region: { type: "Polygon", coordinates: [[[67.54, 15.43], [67.66, 15.34], [67.82, 15.42], [67.86, 15.58], [67.71, 15.68], [67.55, 15.62], [67.47, 15.51], [67.54, 15.43]]] },
   time_window_start: "2026-08-24T06:00:00Z",
   time_window_end: "2026-08-25T18:00:00Z",
   confidence: "medium"
@@ -47,7 +47,7 @@ export const operationalForecast: ForwardForecast = {
   contours: [50, 80, 95].map((percentile) => ({
     horizon_hours: 48,
     percentile: percentile as 50 | 80 | 95,
-    polygon: { type: "Polygon", coordinates: [[[68.76, 16.02], [69.23, 15.93], [69.63, 16.22], [69.52, 16.65], [69.14, 16.88], [68.59, 16.65], [68.42, 16.25], [68.76, 16.02]]] }
+    polygon: { type: "Polygon", coordinates: [[[68.83, 16.02], [69.62, 15.9], [70.27, 16.34], [70.1, 17.03], [69.46, 17.26], [68.68, 16.82], [68.42, 16.26], [68.83, 16.02]]] }
   }))
 };
 

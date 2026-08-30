@@ -14,8 +14,8 @@ type LngLat = [number, number];
 type LayerBucket = "base" | "scene" | "detection" | "hindcast" | "forecast" | "ais" | "suspects";
 
 const INDIA_BOUNDS: LatLngBoundsExpression = [[5.0, 66.0], [25.0, 95.0]];
-const CASE_BOUNDS: LatLngBoundsExpression = [[15.12, 67.62], [17.05, 69.9]];
-const sceneFootprint: GeoJSON.Polygon = { type: "Polygon", coordinates: [[[67.75, 15.28], [69.65, 15.28], [69.65, 16.92], [67.75, 16.92], [67.75, 15.28]]] };
+const CASE_BOUNDS: LatLngBoundsExpression = [[14.92, 67.02], [17.52, 70.82]];
+const sceneFootprint: GeoJSON.Polygon = { type: "Polygon", coordinates: [[[67.25, 15.05], [70.55, 15.05], [70.55, 17.35], [67.25, 17.35], [67.25, 15.05]]] };
 const indiaEezOutline: GeoJSON.Polygon = { type: "Polygon", coordinates: [[[66.5, 5.5], [94.5, 5.5], [94.5, 24.5], [66.5, 24.5], [66.5, 5.5]]] };
 const indiaLand: GeoJSON.MultiPolygon = {
   type: "MultiPolygon",
@@ -31,13 +31,13 @@ const indiaLand: GeoJSON.MultiPolygon = {
   ]
 };
 
-const hindcastCoords: LngLat[] = [[68.94, 16.18], [68.7, 16.06], [68.43, 15.91], [68.13, 15.69]];
+const hindcastCoords: LngLat[] = [[68.94, 16.18], [68.48, 15.95], [68.05, 15.74], [67.66, 15.52]];
 const vessels = [
-  { rank: 1, score: 78, name: "MV Samudra Prerna", mmsi: "419000111", point: [68.47, 15.98] as LngLat, track: [[68.08, 15.64], [68.24, 15.82], [68.47, 15.98], [68.74, 16.13]] as LngLat[] },
-  { rank: 2, score: 61, name: "MV Konkan Carrier", mmsi: "419000222", point: [68.65, 15.86] as LngLat, track: [[68.22, 16.38], [68.42, 16.1], [68.65, 15.86], [69.03, 15.73]] as LngLat[] },
-  { rank: 3, score: 57, name: "MT Dakshin Star", mmsi: "419000333", point: [68.37, 16.16] as LngLat, track: [[67.98, 16.49], [68.19, 16.31], [68.37, 16.16], [68.62, 15.99]] as LngLat[] },
-  { rank: 4, score: 32, name: "OSV West Coast", mmsi: "419000444", point: [69.21, 15.88] as LngLat, track: [[68.84, 15.62], [69.02, 15.76], [69.21, 15.88], [69.48, 15.93]] as LngLat[] },
-  { rank: 5, score: 29, name: "MV Malabar Route", mmsi: "419000555", point: [68.18, 16.56] as LngLat, track: [[67.82, 16.82], [68.02, 16.7], [68.18, 16.56], [68.48, 16.42]] as LngLat[] }
+  { rank: 1, score: 78, name: "MV Samudra Prerna", mmsi: "419000111", point: [67.78, 15.68] as LngLat, track: [[67.36, 15.28], [67.55, 15.48], [67.78, 15.68], [68.22, 15.94]] as LngLat[] },
+  { rank: 2, score: 61, name: "MV Konkan Carrier", mmsi: "419000222", point: [68.18, 15.43] as LngLat, track: [[67.72, 16.1], [67.94, 15.75], [68.18, 15.43], [68.62, 15.22]] as LngLat[] },
+  { rank: 3, score: 57, name: "MT Dakshin Star", mmsi: "419000333", point: [67.52, 15.94] as LngLat, track: [[67.14, 16.28], [67.34, 16.1], [67.52, 15.94], [67.92, 15.62]] as LngLat[] },
+  { rank: 4, score: 32, name: "OSV West Coast", mmsi: "419000444", point: [69.54, 15.68] as LngLat, track: [[69.12, 15.28], [69.32, 15.48], [69.54, 15.68], [70.08, 15.74]] as LngLat[] },
+  { rank: 5, score: 29, name: "MV Malabar Route", mmsi: "419000555", point: [67.8, 16.78] as LngLat, track: [[67.34, 17.16], [67.56, 16.98], [67.8, 16.78], [68.32, 16.48]] as LngLat[] }
 ];
 
 const phaseBuckets: Record<OperationPhase, LayerBucket[]> = {
@@ -145,16 +145,17 @@ function createLayerGroups(map: LeafletMap, caseAoi?: GeoJSON.Polygon): Record<L
 
   const sourceCenter = polygonCenter(operationalSource.probable_source_region.coordinates[0] as LngLat[]);
   addHindcastCopies(groups.hindcast, slickRing, operationalSlick.centroid.coordinates as LngLat, sourceCenter);
+  addMovingSlickCopy(groups.hindcast, operationalSlick.centroid.coordinates as LngLat, sourceCenter);
   L.geoJSON(operationalSource.probable_source_region as GeoJSON.Polygon, { style: { color: "#0369A1", weight: 3, fillColor: "#0EA5E9", fillOpacity: 0.3, className: "leaflet-source-save leaflet-hover-path" } })
-    .bindTooltip(tooltipHtml("Saved source location", ["Contracted from slick copy", "Release window 24 Aug 06:00-25 Aug 18:00"]), stickyTooltip())
+    .bindTooltip(tooltipHtml("Saved source location", ["T-48h contracted slick copy", "Small irregular source polygon"]), stickyTooltip())
     .addTo(groups.hindcast);
   L.polyline(toLatLngs(hindcastCoords), { color: "#FFFFFF", weight: 10, opacity: 0.95, className: "leaflet-hindcast-shadow" }).addTo(groups.hindcast);
-  L.polyline(toLatLngs(hindcastCoords), { color: "#2563EB", weight: 5, dashArray: "12 8", opacity: 1, className: "leaflet-hindcast-flow leaflet-hover-path" })
-    .bindTooltip(tooltipHtml("Euler hindcast trajectory", ["T-0h slick", "T-12h contraction", "T-24h saved source"]), stickyTooltip())
+  L.polyline(toLatLngs(hindcastCoords), { color: "#2563EB", weight: 5, dashArray: "2 14", lineCap: "round", opacity: 1, className: "leaflet-hindcast-flow leaflet-hover-path" })
+    .bindTooltip(tooltipHtml("Euler hindcast trajectory", ["T-0h detected slick", "T-12h here", "T-24h here", "T-48h saved source"]), stickyTooltip())
     .addTo(groups.hindcast);
-  addTimeMarker(groups.hindcast, [68.7, 16.06], "T-8h", "hindcast");
-  addTimeMarker(groups.hindcast, [68.43, 15.91], "T-16h", "hindcast");
-  addTimeMarker(groups.hindcast, sourceCenter, "T-24h", "hindcast");
+  addTimeMarker(groups.hindcast, [68.48, 15.95], "T-12h", "hindcast");
+  addTimeMarker(groups.hindcast, [68.05, 15.74], "T-24h", "hindcast");
+  addTimeMarker(groups.hindcast, sourceCenter, "T-48h", "hindcast");
 
   const forecastBase = operationalForecast.contours[0].polygon.coordinates[0] as LngLat[];
   const centroid = operationalSlick.centroid.coordinates as LngLat;
@@ -162,8 +163,9 @@ function createLayerGroups(map: LeafletMap, caseAoi?: GeoJSON.Polygon): Record<L
   addForecastContour(groups.forecast, forecastBase, centroid, 0.64, "24h", "#EA580C", "#FB923C", 0.22, "0.7s");
   addForecastContour(groups.forecast, forecastBase, centroid, 0.88, "36h", "#DC2626", "#F87171", 0.18, "1.4s");
   addForecastContour(groups.forecast, forecastBase, centroid, 1.14, "48h", "#991B1B", "#EF4444", 0.14, "2.1s");
-  addTimeMarker(groups.forecast, [69.23, 15.93], "+24h", "forecast");
-  addTimeMarker(groups.forecast, [69.52, 16.65], "+48h", "forecast");
+  addTimeMarker(groups.forecast, [69.34, 16.0], "+12h", "forecast");
+  addTimeMarker(groups.forecast, [69.72, 16.22], "+24h", "forecast");
+  addTimeMarker(groups.forecast, [70.1, 17.03], "+48h", "forecast");
 
   vessels.forEach((vessel) => {
     const hot = vessel.rank <= 3;
@@ -206,9 +208,9 @@ function addGrid(group: L.LayerGroup) {
 
 function addHindcastCopies(group: L.LayerGroup, slickRing: LngLat[], slickCenter: LngLat, sourceCenter: LngLat) {
   [
-    { progress: 0.28, scale: 0.78, label: "T-8h", delay: "0.15s", warp: 0.08 },
-    { progress: 0.6, scale: 0.52, label: "T-16h", delay: "1.05s", warp: 0.14 },
-    { progress: 0.93, scale: 0.3, label: "T-24h", delay: "1.95s", warp: 0.2 }
+    { progress: 0.33, scale: 0.72, label: "T-12h", delay: "0.35s", warp: 0.1 },
+    { progress: 0.66, scale: 0.48, label: "T-24h", delay: "1.45s", warp: 0.16 },
+    { progress: 0.98, scale: 0.28, label: "T-48h", delay: "2.55s", warp: 0.24 }
   ].forEach((step) => {
     const center = interpolatePoint(slickCenter, sourceCenter, step.progress);
     const layer = L.polygon(toLatLngs(irregularScaleRing(slickRing, center, step.scale, step.warp)), {
@@ -224,6 +226,24 @@ function addHindcastCopies(group: L.LayerGroup, slickRing: LngLat[], slickCenter
     const path = layer.getElement() as SVGElement | null;
     if (path) path.style.animationDelay = step.delay;
   });
+}
+
+function addMovingSlickCopy(group: L.LayerGroup, slickCenter: LngLat, sourceCenter: LngLat) {
+  const lngDelta = sourceCenter[0] - slickCenter[0];
+  const latDelta = sourceCenter[1] - slickCenter[1];
+  const moveX = lngDelta * 150;
+  const moveY = latDelta * -150;
+  const marker = L.marker(toLatLng(slickCenter), {
+    icon: L.divIcon({
+      className: "",
+      html: `<span class="leaflet-moving-slick-copy" style="--move-x-1:${moveX * 0.33}px; --move-y-1:${moveY * 0.33}px; --move-x-2:${moveX * 0.66}px; --move-y-2:${moveY * 0.66}px; --move-x-3:${moveX}px; --move-y-3:${moveY}px"></span>`,
+      iconSize: [42, 30],
+      iconAnchor: [21, 15]
+    }),
+    interactive: false
+  }).addTo(group);
+  const element = marker.getElement();
+  if (element) element.style.pointerEvents = "none";
 }
 
 function addForecastContour(group: L.LayerGroup, ring: LngLat[], center: LngLat, scale: number, label: string, color: string, fillColor: string, fillOpacity: number, delay: string) {

@@ -35,3 +35,9 @@ Port 5174 is in use, trying another one...
 8:02:03 am [vite] hmr update /src/map/MapCanvas.tsx, /src/styles.css
 8:02:19 am [vite] hmr update /src/styles.css
 8:02:28 am [vite] hmr update /src/screens/OperationalConsole.tsx, /src/styles.css
+8:05:57 am [vite] hmr update /src/styles.css, /src/screens/MapView.tsx, /src/screens/SpillPanel.tsx, /src/screens/CaseList.tsx, /src/screens/SourcePanel.tsx, /src/screens/EvidenceExplorer.tsx, /src/screens/VesselRanking.tsx, /src/screens/CaseIntake.tsx, /src/map/MapCanvas.tsx
+8:06:50 am [vite] hmr update /src/map/MapCanvas.tsx, /src/styles.css
+8:07:15 am [vite] hmr update /src/styles.css
+8:07:28 am [vite] hmr update /src/map/MapCanvas.tsx, /src/styles.css
+8:07:40 am [vite] hmr update /src/styles.css
+8:07:52 am [vite] hmr update /src/screens/OperationalConsole.tsx, /src/styles.css
