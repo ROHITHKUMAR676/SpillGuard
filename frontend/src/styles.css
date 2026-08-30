@@ -26,7 +26,9 @@
   --map-hindcast: #2563eb;
   --map-source-heat-low: #eef3fa;
   --map-source-heat-high: #0b2545;
-  --map-forecast: #f97316;
+  --map-forecast-50: #facc15;
+  --map-forecast-80: #fb923c;
+  --map-forecast-95: #f87171;
   --map-trajectory: #6b7280;
   --map-vessel-top: #b3261e;
   --map-vessel-shortlisted: #b5860b;
@@ -127,7 +129,299 @@ button:disabled {
 
 .map-chip-forecast {
   color: #7c2d12;
-  border: 1px solid var(--map-forecast);
+  border: 1px solid var(--map-forecast-80);
+}
+
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #cfe8f6;
+  font-family: "Inter", "Noto Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.leaflet-tile-pane {
+  filter: saturate(0.9) contrast(1.02);
+}
+
+.leaflet-overlay-pane svg {
+  overflow: visible;
+}
+
+.leaflet-hover-path {
+  transition:
+    filter 0.22s ease,
+    stroke-width 0.22s ease,
+    fill-opacity 0.22s ease,
+    opacity 0.22s ease;
+}
+
+.leaflet-hover-path:hover {
+  filter: drop-shadow(0 0 8px rgba(14, 165, 233, 0.5));
+  stroke-width: 5;
+  fill-opacity: 0.5;
+  opacity: 1;
+}
+
+.leaflet-hover-marker {
+  transition:
+    filter 0.22s ease,
+    r 0.22s ease;
+}
+
+.leaflet-hover-marker:hover {
+  filter: drop-shadow(0 0 8px rgba(17, 24, 39, 0.55));
+}
+
+.leaflet-control-zoom {
+  border: 1px solid var(--neutral-200) !important;
+  border-radius: 6px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.08) !important;
+}
+
+.leaflet-control-zoom a {
+  color: var(--neutral-900) !important;
+}
+
+.leaflet-spill-tooltip {
+  border: 1px solid var(--neutral-200);
+  border-left: 4px solid var(--navy-500);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.14);
+  color: var(--neutral-900);
+  padding: 0;
+}
+
+.leaflet-spill-tooltip::before {
+  display: none;
+}
+
+.leaflet-spill-tooltip-inner {
+  display: grid;
+  gap: 3px;
+  min-width: 170px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.leaflet-spill-tooltip-inner strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.leaflet-spill-tooltip-inner span {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: var(--neutral-700);
+}
+
+.leaflet-vessel-pin {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 5px 14px rgba(17, 24, 39, 0.3);
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    box-shadow 0.22s ease,
+    filter 0.22s ease,
+    transform 0.22s ease;
+  animation: vessel-bob 2.8s ease-in-out infinite;
+}
+
+.leaflet-vessel-pin:hover {
+  box-shadow: 0 8px 20px rgba(17, 24, 39, 0.38);
+  filter: saturate(1.2);
+  transform: translateY(-5px) scale(1.12);
+}
+
+.leaflet-vessel-pin b {
+  position: absolute;
+  right: -3px;
+  top: -4px;
+  min-width: 15px;
+  height: 15px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #ffffff;
+  color: var(--neutral-900);
+  font-size: 9px;
+  font-weight: 800;
+  box-shadow: 0 1px 5px rgba(17, 24, 39, 0.22);
+}
+
+.leaflet-vessel-shape {
+  position: relative;
+  width: 20px;
+  height: 14px;
+  display: block;
+}
+
+.leaflet-vessel-shape::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 6px;
+  width: 16px;
+  height: 7px;
+  border-radius: 1px 1px 8px 8px;
+  background: currentColor;
+  clip-path: polygon(0 0, 100% 0, 82% 100%, 18% 100%);
+}
+
+.leaflet-vessel-shape::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 1px;
+  width: 7px;
+  height: 7px;
+  border-radius: 1px;
+  background: currentColor;
+  box-shadow: 4px 3px 0 -2px currentColor;
+}
+
+.leaflet-vessel-pin-hot {
+  color: #ffffff;
+  background: var(--map-vessel-top);
+}
+
+.leaflet-vessel-pin-muted {
+  color: var(--neutral-700);
+  background: #ffffff;
+  border-color: var(--neutral-500);
+}
+
+.leaflet-vessel-pin-muted .leaflet-vessel-shape {
+  color: var(--neutral-700);
+}
+
+.leaflet-vessel-track {
+  stroke-dasharray: 2 12;
+  stroke-linecap: round;
+  animation: vessel-track-draw 4.4s ease-out both;
+}
+
+.leaflet-suspect-track {
+  animation:
+    vessel-track-draw 4.4s ease-out both,
+    suspect-track-pulse 1.9s ease-in-out 4.4s infinite;
+}
+
+.leaflet-slick-draw {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation:
+    slick-line-draw 5.2s cubic-bezier(0.23, 1, 0.32, 1) forwards,
+    slick-fill-rise 5.2s ease forwards,
+    slick-surface 7s ease-in-out 5.2s infinite;
+}
+
+.leaflet-hindcast-copy {
+  opacity: 0;
+  stroke-dasharray: 240;
+  stroke-dashoffset: 240;
+  animation:
+    hindcast-backtrack-reveal 5.8s ease-out infinite,
+    hindcast-backtrack-breathe 2.8s ease-in-out infinite;
+}
+
+.leaflet-hindcast-copy:nth-of-type(2) {
+  animation-delay: 0.75s;
+}
+
+.leaflet-hindcast-copy:nth-of-type(3) {
+  animation-delay: 1.5s;
+}
+
+.leaflet-hindcast-flow {
+  stroke-dasharray: 12 11;
+  animation: current-flow 2.8s linear infinite;
+}
+
+.leaflet-hindcast-shadow {
+  opacity: 0.5;
+}
+
+.leaflet-source-save {
+  animation:
+    source-save 3.6s ease-in-out both,
+    source-breathe 2.6s ease-in-out 3.6s infinite;
+}
+
+.leaflet-forecast-spread {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  animation:
+    forecast-spread 7.5s ease-in-out infinite,
+    forecast-edge 2.4s linear infinite;
+}
+
+.leaflet-time-chip {
+  display: grid;
+  place-items: center;
+  min-width: 50px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 3px 10px rgba(17, 24, 39, 0.18);
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 800;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+  animation: time-chip-pop 0.7s ease both;
+}
+
+.leaflet-time-chip:hover {
+  box-shadow: 0 8px 18px rgba(17, 24, 39, 0.28);
+  transform: translateY(-3px) scale(1.06);
+}
+
+.leaflet-time-chip-hindcast {
+  color: var(--map-hindcast);
+}
+
+.leaflet-time-chip-forecast {
+  color: #b45309;
+}
+
+.vessel-pin {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.28);
+  font-family: "Inter", "Noto Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.vessel-pin span {
+  transform: translateY(-0.5px);
+}
+
+.vessel-pin-hot {
+  color: #ffffff;
+  background: var(--map-vessel-top);
+}
+
+.vessel-pin-muted {
+  color: var(--neutral-700);
+  background: #ffffff;
+  border-color: var(--neutral-500);
 }
 
 @keyframes pulse-dot {
@@ -143,4 +437,140 @@ button:disabled {
 
 .pulse-dot {
   animation: pulse-dot 1.4s ease-in-out infinite;
+}
+
+@keyframes slick-line-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes slick-fill-rise {
+  0%, 45% {
+    fill-opacity: 0;
+  }
+  100% {
+    fill-opacity: 0.58;
+  }
+}
+
+@keyframes slick-surface {
+  0%, 100% {
+    filter: drop-shadow(0 0 0 rgba(17, 24, 39, 0));
+  }
+  50% {
+    filter: drop-shadow(0 0 9px rgba(17, 24, 39, 0.28));
+  }
+}
+
+@keyframes hindcast-backtrack-reveal {
+  0% {
+    opacity: 0;
+    stroke-dashoffset: 240;
+  }
+  20% {
+    opacity: 0;
+  }
+  42%, 78% {
+    opacity: 0.92;
+    stroke-dashoffset: 0;
+  }
+  100% {
+    opacity: 0.35;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes hindcast-backtrack-breathe {
+  0%, 100% {
+    filter: drop-shadow(0 0 1px rgba(37, 99, 235, 0.18));
+  }
+  50% {
+    filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.4));
+  }
+}
+
+@keyframes current-flow {
+  to {
+    stroke-dashoffset: -46;
+  }
+}
+
+@keyframes source-save {
+  0% {
+    opacity: 0;
+    transform: scale(0.68);
+  }
+  72%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes source-breathe {
+  0%, 100% {
+    filter: drop-shadow(0 0 3px rgba(37, 99, 235, 0.22));
+  }
+  50% {
+    filter: drop-shadow(0 0 13px rgba(37, 99, 235, 0.5));
+  }
+}
+
+@keyframes forecast-spread {
+  0% {
+    opacity: 0;
+    transform: scale(0.52);
+  }
+  22%, 78% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes forecast-edge {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+@keyframes vessel-track-draw {
+  from {
+    stroke-dashoffset: 180;
+    opacity: 0;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes suspect-track-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 2px rgba(179, 38, 30, 0.2));
+  }
+  50% {
+    filter: drop-shadow(0 0 10px rgba(179, 38, 30, 0.6));
+  }
+}
+
+@keyframes vessel-bob {
+  0%, 100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -3px;
+  }
+}
+
+@keyframes time-chip-pop {
+  from {
+    opacity: 0;
+    transform: translateY(5px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }

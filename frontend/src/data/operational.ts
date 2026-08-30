@@ -7,7 +7,7 @@ export const operationalCase: Case = {
   id: "ARB-2026-014",
   title: "Arabian Sea AOI-1",
   status: "open",
-  aoi: { type: "Polygon", coordinates: [[[72.6, 18.5], [73.5, 18.5], [73.5, 19.3], [72.6, 19.3], [72.6, 18.5]]] },
+  aoi: { type: "Polygon", coordinates: [[[67.75, 15.28], [69.65, 15.28], [69.65, 16.92], [67.75, 16.92], [67.75, 15.28]]] },
   time_window_start: "2026-08-20T00:00:00Z",
   time_window_end: "2026-08-27T00:00:00Z",
   created_at: "2026-08-29T10:30:00Z"
@@ -22,10 +22,10 @@ export const operationalCases: Case[] = [
 export const operationalSlick: OilSlick = {
   id: "slick-9f3a",
   scene_id: "scene-s1c-operational",
-  geometry: { type: "MultiPolygon", coordinates: [[[[72.92, 18.88], [72.98, 18.83], [73.09, 18.85], [73.16, 18.91], [73.12, 19.0], [73.02, 19.03], [72.94, 18.98], [72.9, 18.92], [72.92, 18.88]]]] },
+  geometry: { type: "MultiPolygon", coordinates: [[[[68.78, 16.1], [68.88, 16.01], [69.06, 16.04], [69.17, 16.15], [69.09, 16.29], [68.91, 16.34], [68.77, 16.25], [68.71, 16.16], [68.78, 16.1]]]] },
   area_km2: 142.4,
   perimeter_km: 52.1,
-  centroid: { type: "Point", coordinates: [73.045, 18.915] },
+  centroid: { type: "Point", coordinates: [68.94, 16.18] },
   orientation_deg: 42,
   confidence: 0.82,
   possible_lookalike: false,
@@ -36,7 +36,7 @@ export const operationalSlick: OilSlick = {
 export const operationalSource: SourceHypothesis = {
   id: "source-hypothesis-operational",
   drift_run_id: "drift-run-operational",
-  probable_source_region: { type: "Polygon", coordinates: [[[72.7, 18.69], [72.82, 18.65], [72.93, 18.73], [72.9, 18.85], [72.78, 18.88], [72.69, 18.79], [72.7, 18.69]]] },
+  probable_source_region: { type: "Polygon", coordinates: [[[68.02, 15.64], [68.12, 15.57], [68.25, 15.62], [68.28, 15.74], [68.17, 15.82], [68.04, 15.77], [67.98, 15.69], [68.02, 15.64]]] },
   time_window_start: "2026-08-24T06:00:00Z",
   time_window_end: "2026-08-25T18:00:00Z",
   confidence: "medium"
@@ -45,9 +45,9 @@ export const operationalSource: SourceHypothesis = {
 export const operationalForecast: ForwardForecast = {
   drift_run_id: "drift-run-operational",
   contours: [50, 80, 95].map((percentile) => ({
-    horizon_hours: 72,
+    horizon_hours: 48,
     percentile: percentile as 50 | 80 | 95,
-    polygon: { type: "Polygon", coordinates: [[[72.96, 18.82], [73.24, 18.74], [73.48, 18.91], [73.43, 19.17], [73.22, 19.32], [72.91, 19.2], [72.78, 18.98], [72.96, 18.82]]] }
+    polygon: { type: "Polygon", coordinates: [[[68.76, 16.02], [69.23, 15.93], [69.63, 16.22], [69.52, 16.65], [69.14, 16.88], [68.59, 16.65], [68.42, 16.25], [68.76, 16.02]]] }
   }))
 };
 

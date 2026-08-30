@@ -2,9 +2,36 @@
 > dev
 > vite --host 0.0.0.0 --host 0.0.0.0
 
+Port 5173 is in use, trying another one...
+Port 5174 is in use, trying another one...
 
-  VITE v5.4.21  ready in 529 ms
+  VITE v5.4.21  ready in 489 ms
 
-  ➜  Local:   http://localhost:5173/
-  ➜  Network: http://192.168.56.1:5173/
-  ➜  Network: http://172.16.99.143:5173/
+  ➜  Local:   http://localhost:5175/
+  ➜  Network: http://192.168.56.1:5175/
+  ➜  Network: http://172.16.99.143:5175/
+6:53:26 am [vite] hmr update /src/map/MapCanvas.tsx, /src/styles.css
+6:55:01 am [vite] hmr update /src/map/MapCanvas.tsx, /src/styles.css
+7:00:16 am [vite] hmr update /src/map/MapCanvas.tsx, /src/styles.css
+7:01:38 am [vite] hmr update /src/map/MapCanvas.tsx, /src/styles.css
+7:01:57 am [vite] hmr update /src/styles.css
+7:02:31 am [vite] ✨ new dependencies optimized: leaflet
+7:02:31 am [vite] ✨ optimized dependencies changed. reloading
+7:03:41 am [vite] hmr update /src/map/MapCanvas.tsx, /src/styles.css
+7:05:00 am [vite] hmr update /src/map/MapCanvas.tsx, /src/styles.css
+7:05:08 am [vite] hmr update /src/styles.css
+7:08:52 am [vite] hmr update /src/styles.css, /src/screens/MapView.tsx, /src/screens/SpillPanel.tsx, /src/screens/CaseList.tsx, /src/screens/SourcePanel.tsx, /src/screens/EvidenceExplorer.tsx, /src/screens/VesselRanking.tsx, /src/screens/CaseIntake.tsx, /src/map/MapCanvas.tsx
+7:29:40 am [vite] hmr update /src/styles.css, /src/screens/MapView.tsx, /src/screens/SpillPanel.tsx, /src/screens/CaseList.tsx, /src/screens/SourcePanel.tsx, /src/screens/EvidenceExplorer.tsx, /src/screens/VesselRanking.tsx, /src/screens/CaseIntake.tsx, /src/map/MapCanvas.tsx
+7:31:13 am [vite] hmr update /src/map/MapCanvas.tsx, /src/styles.css
+7:31:25 am [vite] hmr update /src/map/MapCanvas.tsx, /src/styles.css
+7:32:20 am [vite] hmr update /src/styles.css
+7:32:33 am [vite] hmr update /src/map/MapCanvas.tsx, /src/styles.css
+7:32:59 am [vite] hmr update /src/screens/OperationalConsole.tsx, /src/styles.css
+7:33:18 am [vite] hmr update /src/map/MapCanvas.tsx, /src/styles.css
+7:36:17 am [vite] hmr update /src/styles.css, /src/screens/MapView.tsx, /src/screens/SpillPanel.tsx, /src/screens/CaseList.tsx, /src/screens/SourcePanel.tsx, /src/screens/EvidenceExplorer.tsx, /src/screens/VesselRanking.tsx, /src/screens/CaseIntake.tsx, /src/map/MapCanvas.tsx
+7:36:49 am [vite] hmr update /src/map/MapCanvas.tsx, /src/styles.css
+7:36:59 am [vite] hmr update /src/screens/OperationalConsole.tsx, /src/styles.css
+8:01:31 am [vite] hmr update /src/styles.css, /src/screens/MapView.tsx, /src/screens/SpillPanel.tsx, /src/screens/CaseList.tsx, /src/screens/SourcePanel.tsx, /src/screens/EvidenceExplorer.tsx, /src/screens/VesselRanking.tsx, /src/screens/CaseIntake.tsx, /src/map/MapCanvas.tsx
+8:02:03 am [vite] hmr update /src/map/MapCanvas.tsx, /src/styles.css
+8:02:19 am [vite] hmr update /src/styles.css
+8:02:28 am [vite] hmr update /src/screens/OperationalConsole.tsx, /src/styles.css

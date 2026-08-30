@@ -58,28 +58,28 @@ const automaticStages: WorkflowStage[] = [
   {
     id: "detection",
     label: "Oil spill detection",
-    detail: "The ML model segments the slick candidate and publishes a polygon mask with area, perimeter, and centroid.",
+    detail: "The ML model segments the slick candidate and reveals the polygon mask as a drawn outline over open Arabian Sea water.",
     metric: "Confidence 0.82",
-    status: "Mask generated"
+    status: "Mask drawn"
   },
   {
     id: "hindcast",
     label: "Euler hindcast",
-    detail: "Current, wind, and drift forcing contract the slick envelope back toward the probable source region and release time.",
+    detail: "Current, wind, and drift forcing animate slick copies backward at time intervals, contracting each copy toward the saved source location.",
     metric: "24 Aug 06:00-25 Aug 18:00",
-    status: "Source window reconstructed"
+    status: "Source location saved"
   },
   {
     id: "forecast",
     label: "48 hour forecast",
-    detail: "Forward drift spreads the slick envelope for the next 48 hours so response teams can prioritize monitoring.",
-    metric: "50/80/95 contour bands",
-    status: "Spread envelope projected"
+    detail: "Forward drift slowly expands new copies from the slick polygon, showing how far the surface oil could spread over the next 48 hours.",
+    metric: "12/24/36/48 hour intervals",
+    status: "48 hour spread projected"
   },
   {
     id: "ais",
     label: "AIS correlation",
-    detail: "Vessel tracks inside the hindcast source window are compared for spatial, temporal, speed, loitering, and continuity anomalies.",
+    detail: "Vessel tracks inside the offshore hindcast source window are compared for spatial, temporal, speed, loitering, and continuity anomalies.",
     metric: "5 vessel tracks scanned",
     status: "Candidates shortlisted"
   },
@@ -131,10 +131,11 @@ export function OperationalConsole() {
   const [running, setRunning] = useState(true);
   const stages = mode === "automatic" ? automaticStages : uploadStages;
   const activeStage = stages[activeIndex];
+  const sequenceComplete = highestCompletedIndex >= stages.length - 1 && !running;
   const completedProgress = Math.round(((highestCompletedIndex + 1) / stages.length) * 100);
 
   useEffect(() => {
-    if (mode !== "automatic" || !running || activeIndex >= stages.length - 1) return;
+    if (!running || activeIndex >= stages.length - 1) return;
     const timer = window.setTimeout(() => {
       setActiveIndex((current) => {
         const next = Math.min(current + 1, stages.length - 1);
@@ -144,7 +145,7 @@ export function OperationalConsole() {
       });
     }, 4200);
     return () => window.clearTimeout(timer);
-  }, [activeIndex, mode, running, stages.length]);
+  }, [activeIndex, running, stages.length]);
 
   async function startUpload() {
     setMode("upload");
@@ -186,13 +187,13 @@ export function OperationalConsole() {
   }
 
   return (
-    <main className="grid min-h-[calc(100vh-56px)] grid-cols-[380px_minmax(520px,1fr)_400px] bg-neutral-50">
+    <main className="grid min-h-[calc(100vh-56px)] grid-cols-[360px_minmax(560px,1fr)_380px] bg-neutral-100">
       <aside className="border-r border-neutral-200 bg-neutral-0 p-5">
         <header>
-          <p className="text-caption uppercase text-neutral-500">SpillGuard</p>
+          <p className="text-caption uppercase text-neutral-500">SpillGuard / Case ARB-2026-014</p>
           <h1 className="mt-1 text-display text-neutral-900">Maritime Spill Attribution Console</h1>
           <p className="mt-3 text-body text-neutral-700">
-            Automated SAR intake, oil detection, drift reconstruction, AIS correlation, and transparent vessel-lead ranking for investigator review.
+            Automated SAR intake, slick detection, Euler drift reconstruction, AIS correlation, and vessel-lead ranking for investigator review.
           </p>
         </header>
 
@@ -201,7 +202,7 @@ export function OperationalConsole() {
           <ModeButton active={mode === "upload"} icon={<UploadCloud size={17} />} label="Upload scene" onClick={() => selectMode("upload")} />
         </section>
 
-        <section className="mt-5 rounded-md border border-neutral-200 bg-neutral-50 p-4">
+        <section className="mt-5 rounded-md border border-neutral-200 bg-neutral-50 p-4 shadow-elevation-1">
           {mode === "automatic" ? (
             <>
               <div className="flex items-center gap-2 text-body-medium text-neutral-900">
@@ -220,13 +221,21 @@ export function OperationalConsole() {
           )}
         </section>
 
-        <ol className="mt-5 space-y-2">
+        <div className="mt-5 flex items-end justify-between gap-3">
+          <div>
+            <p className="text-caption uppercase text-neutral-500">Workflow</p>
+            <h2 className="text-h3 text-neutral-900">{sequenceComplete ? "Manual review mode" : "Automated run"}</h2>
+          </div>
+          <span className="font-mono text-caption text-neutral-500">{completedProgress}%</span>
+        </div>
+
+        <ol className="mt-3 space-y-2">
           {stages.map((stage, index) => (
             <li key={stage.id}>
               <button
-                className={`w-full rounded-md border p-3 text-left transition-none ${
+                className={`w-full rounded-md border p-3 text-left shadow-sm transition-none ${
                   index === activeIndex
-                    ? "border-navy-500 bg-navy-50"
+                    ? "border-navy-500 bg-navy-50 ring-1 ring-navy-500"
                     : index <= highestCompletedIndex
                       ? "border-status-success bg-status-success-bg"
                       : "border-neutral-200 bg-neutral-0"
@@ -237,7 +246,7 @@ export function OperationalConsole() {
                 }}
               >
                 <div className="flex items-start gap-3">
-                  <span className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-caption ${
+                  <span className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-md text-caption ${
                     index <= highestCompletedIndex && index !== activeIndex
                       ? "bg-status-success text-white"
                       : index === activeIndex && running
@@ -247,7 +256,7 @@ export function OperationalConsole() {
                     {index < activeIndex ? <Check size={14} /> : index + 1}
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-body-medium text-neutral-900">{stage.label}</span>
+                    <span className="flex items-center gap-2 text-body-medium text-neutral-900">{iconFor(stage.id)} {stage.label}</span>
                     <span className="mt-1 block text-caption text-neutral-500">{stage.status}</span>
                     <span className="mt-2 block font-mono text-caption text-neutral-700">{stage.metric}</span>
                   </span>
@@ -258,7 +267,7 @@ export function OperationalConsole() {
         </ol>
       </aside>
 
-      <section className="relative min-w-0">
+      <section className="relative min-w-0 border-x border-neutral-200 bg-neutral-100">
         <MapCanvas phase={activeStage.id} />
       </section>
 
@@ -268,13 +277,15 @@ export function OperationalConsole() {
             <p className="text-caption uppercase text-neutral-500">Current stage</p>
             <h2 className="mt-1 text-h2 text-neutral-900">{activeStage.label}</h2>
           </div>
-          <span className="font-mono text-caption text-neutral-500">{completedProgress}%</span>
+          <span className={`rounded-full px-2 py-1 font-mono text-caption ${sequenceComplete ? "bg-status-success-bg text-status-success" : "bg-status-running-bg text-status-running"}`}>
+            {sequenceComplete ? "READY" : `${completedProgress}%`}
+          </span>
         </div>
 
         <div className="mt-3 flex items-center justify-between gap-3">
           <span className={`flex items-center gap-2 text-caption ${running ? "text-status-running" : "text-neutral-500"}`}>
             <span className={`h-2 w-2 rounded-full ${running ? "bg-status-running pulse-dot" : "bg-neutral-300"}`} />
-            {running ? "Auto-playing" : activeIndex === stages.length - 1 ? "Sequence complete - paused" : `Paused on stage ${activeIndex + 1}`}
+            {running ? "Auto-playing pipeline" : sequenceComplete ? "Automation complete - manual stage review" : `Paused on stage ${activeIndex + 1}`}
           </span>
           {!running && (
             activeIndex === stages.length - 1
@@ -283,7 +294,7 @@ export function OperationalConsole() {
           )}
         </div>
 
-        <section className="mt-4 rounded-md border border-neutral-200 bg-neutral-50 p-4">
+        <section className="mt-4 rounded-md border border-neutral-200 bg-neutral-50 p-4 shadow-elevation-1">
           <div className="flex items-center gap-2 text-body-medium text-neutral-900">{iconFor(activeStage.id)} {activeStage.status}</div>
           <p className="mt-2 text-body text-neutral-700">{activeStage.detail}</p>
           <div className="mt-4 h-2 rounded-full bg-neutral-200">
@@ -294,6 +305,8 @@ export function OperationalConsole() {
             <Button disabled={activeIndex === stages.length - 1} onClick={advance}>Next stage</Button>
           </div>
         </section>
+
+        {(activeStage.id === "hindcast" || activeStage.id === "forecast") && <DriftCallout phase={activeStage.id} />}
 
         <StageFacts phase={activeStage.id} mode={mode} />
 
@@ -327,6 +340,20 @@ export function OperationalConsole() {
         )}
       </aside>
     </main>
+  );
+}
+
+function DriftCallout({ phase }: { phase: OperationPhase }) {
+  const isForecast = phase === "forecast";
+  return (
+    <section className={`mt-5 rounded-md border p-4 ${isForecast ? "border-[#EA580C] bg-[#FFF7ED]" : "border-[#2563EB] bg-[#EFF6FF]"}`}>
+      <h3 className="text-h3 text-neutral-900">{isForecast ? "Forecast stays layered over hindcast" : "Euler hindcast reconstruction"}</h3>
+      <p className="mt-2 text-caption text-neutral-700">
+        {isForecast
+          ? "Forward copies expand from the detected slick at +12h, +24h, +36h, and +48h. Hover the spread envelopes to inspect each interval."
+          : "Blue slick copies contract backward at time intervals until the probable offshore source region is saved on the map."}
+      </p>
+    </section>
   );
 }
 
@@ -385,10 +412,10 @@ function StageFacts({ phase, mode }: { phase: OperationPhase; mode: IntakeMode }
   const facts: Record<OperationPhase, Array<[string, string]>> = {
     monitoring: [["Input", "Automatic SAR feed"], ["Sensor", "Sentinel-1"], ["Polling state", "Ready for acquisition"]],
     eez: [["Jurisdiction", "India EEZ"], ["Validation", "Footprint-coordinate intersection"], ["Decision", "Forward to ML detection"]],
-    detection: [["Slick area", "142.4 km2"], ["Perimeter", "52.1 km"], ["Centroid", "73.045,18.915"], ["Mask confidence", "0.82"]],
-    hindcast: [["Model", "Euler drift"], ["Forcing", "Ocean currents + wind"], ["Source region", "72.72,18.68 to 72.92,18.88"], ["Release window", "24 Aug 06:00-25 Aug 18:00"]],
-    forecast: [["Horizon", "48 hours"], ["Contours", "50%, 80%, 95%"], ["Use", "Response and monitoring priority"]],
-    ais: [["AIS window", "Hindcast release interval"], ["Scanned vessels", "5"], ["Shortlisted", "3"], ["Anomalies", "Speed, loitering, timing"]],
+    detection: [["Slick area", "142.4 km2"], ["Perimeter", "52.1 km"], ["Centroid", "68.940,16.180"], ["Mask confidence", "0.82"]],
+    hindcast: [["Model", "Euler drift"], ["Forcing", "Ocean currents + wind"], ["Source region", "67.98,15.57 to 68.28,15.82"], ["Release window", "24 Aug 06:00-25 Aug 18:00"]],
+    forecast: [["Horizon", "48 hours"], ["Intervals", "+12h, +24h, +36h, +48h"], ["Use", "Response and monitoring priority"]],
+    ais: [["AIS window", "Hindcast release interval"], ["Scanned vessels", "5"], ["Shown as suspects", "Top 3 only in ranking"], ["Anomalies", "Speed, loitering, timing"]],
     ranking: [["Model", "Attribution LLM"], ["Score inputs", "Spatial, temporal, trajectory, behaviour, source, AIS continuity"], ["Output", "Ranked investigative leads"]]
   };
   const visibleFacts = mode === "upload" && phase === "detection" ? [["Input", "Uploaded SAR scene"], ...facts.detection] : facts[phase];
