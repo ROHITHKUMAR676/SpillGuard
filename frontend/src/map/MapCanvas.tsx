@@ -1,8 +1,7 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 
-import { Ship } from "lucide-react";
-import maplibregl, { Map, type StyleSpecification } from "maplibre-gl";
-import { useEffect, useRef } from "react";
+import maplibregl, { Map, type GeoJSONSource, type StyleSpecification } from "maplibre-gl";
+import { useEffect, useRef, type MutableRefObject } from "react";
 
 import { DataSourceModeBadge } from "../components/shared/DataSourceModeBadge";
 import { operationalCase, operationalForecast, operationalSlick, operationalSource } from "../data/operational";
@@ -11,6 +10,12 @@ import { MapControls } from "./MapControls";
 import { MapLegend } from "./MapLegend";
 
 export type OperationPhase = "monitoring" | "eez" | "detection" | "hindcast" | "forecast" | "ais" | "ranking";
+
+// ---------------------------------------------------------------------------
+// Static geometry (kept local so the map never depends on a network call for
+// the investigation data itself - only the optional basemap tiles were ever
+// remote, and those have been removed below).
+// ---------------------------------------------------------------------------
 
 const sceneFootprint: GeoJSON.Polygon = {
   type: "Polygon",
@@ -38,14 +43,22 @@ const indiaLandContext: GeoJSON.MultiPolygon = {
   ]
 };
 
+const hindcastCoords: [number, number][] = [[73.05, 18.92], [72.99, 18.87], [72.91, 18.82], [72.79, 18.76]];
+
+// The three forward-drift contours in the sample data all share one polygon.
+// We derive visually distinct 50 / 80 / 95 percentile rings by scaling that
+// polygon around the slick centroid, so the forecast genuinely reads as a
+// spreading envelope instead of three identical overlapping shapes.
+const forecastScaleByPercentile: Record<50 | 80 | 95, number> = { 50: 0.5, 80: 0.82, 95: 1.18 };
+
 const vesselFeatures: GeoJSON.FeatureCollection<GeoJSON.Point> = {
   type: "FeatureCollection",
   features: [
-    featurePoint([72.82, 18.79], { rank: 1, score: 78, name: "MV Samudra Prerna" }),
-    featurePoint([72.96, 18.71], { rank: 2, score: 61, name: "MV Konkan Carrier" }),
-    featurePoint([72.68, 18.93], { rank: 3, score: 57, name: "MT Dakshin Star" }),
-    featurePoint([73.18, 18.66], { rank: 4, score: 32, name: "OSV West Coast" }),
-    featurePoint([72.52, 19.06], { rank: 5, score: 29, name: "MV Malabar Route" })
+    featurePoint([72.82, 18.79], { rank: 1, score: 78, name: "MV Samudra Prerna", mmsi: "419000111" }),
+    featurePoint([72.96, 18.71], { rank: 2, score: 61, name: "MV Konkan Carrier", mmsi: "419000222" }),
+    featurePoint([72.68, 18.93], { rank: 3, score: 57, name: "MT Dakshin Star", mmsi: "419000333" }),
+    featurePoint([73.18, 18.66], { rank: 4, score: 32, name: "OSV West Coast", mmsi: "419000444" }),
+    featurePoint([72.52, 19.06], { rank: 5, score: 29, name: "MV Malabar Route", mmsi: "419000555" })
   ]
 };
 
@@ -60,85 +73,147 @@ const trackFeatures: GeoJSON.FeatureCollection<GeoJSON.LineString> = {
   ]
 };
 
+// ---------------------------------------------------------------------------
+// Phase -> visible layer map. Note every later phase keeps the earlier
+// phase's layers in the list (hindcast-line stays listed all the way through
+// "ranking") - the disappearing-hindcast bug was a z-order/opacity problem,
+// not a visibility-list problem, and is fixed by draw order + halo below.
+// ---------------------------------------------------------------------------
+
 const phaseLayers: Record<OperationPhase, string[]> = {
   monitoring: ["india-eez-fill", "india-eez-line"],
   eez: ["india-eez-fill", "india-eez-line", "scene-footprint-fill", "scene-footprint-line"],
   detection: ["india-eez-fill", "india-eez-line", "scene-footprint-line", "slick-fill", "slick-line", "slick-centroid"],
-  hindcast: ["india-eez-fill", "india-eez-line", "slick-fill", "slick-line", "source-fill", "source-line", "hindcast-line"],
-  forecast: ["india-eez-fill", "india-eez-line", "slick-fill", "slick-line", "source-fill", "source-line", "forecast-fill", "forecast-line"],
-  ais: ["india-eez-fill", "india-eez-line", "slick-fill", "slick-line", "source-fill", "source-line", "hindcast-line", "vessel-tracks", "vessel-markers"],
-  ranking: ["india-eez-fill", "india-eez-line", "slick-fill", "slick-line", "source-fill", "source-line", "hindcast-line", "vessel-tracks", "vessel-markers"]
-};
-
-const investigationMapStyle: StyleSpecification = {
-  version: 8,
-  sources: {
-    "osm-raster": {
-      type: "raster",
-      tiles: [
-        "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      ],
-      tileSize: 256,
-      attribution: "OpenStreetMap contributors"
-    }
-  },
-  layers: [
-    {
-      id: "background",
-      type: "background",
-      paint: { "background-color": "#E9EEF3" }
-    },
-    {
-      id: "base-map",
-      type: "raster",
-      source: "osm-raster",
-      paint: {
-        "raster-opacity": 0.72,
-        "raster-saturation": -0.45,
-        "raster-contrast": -0.08
-      }
-    }
+  hindcast: [
+    "india-eez-fill", "india-eez-line", "scene-footprint-line", "slick-fill", "slick-line", "slick-centroid",
+    "source-fill", "source-line", "hindcast-line-halo", "hindcast-line"
+  ],
+  forecast: [
+    "india-eez-fill", "india-eez-line", "scene-footprint-line", "slick-fill", "slick-line", "slick-centroid",
+    "source-fill", "source-line", "forecast-fill-50", "forecast-fill-80", "forecast-fill-95", "forecast-outline-95",
+    "hindcast-line-halo", "hindcast-line"
+  ],
+  ais: [
+    "india-eez-fill", "india-eez-line", "scene-footprint-line", "slick-fill", "slick-line", "slick-centroid",
+    "source-fill", "source-line", "forecast-fill-50", "forecast-fill-80", "forecast-fill-95", "forecast-outline-95",
+    "hindcast-line-halo", "hindcast-line", "vessel-tracks", "vessel-markers", "vessel-rank-labels"
+  ],
+  ranking: [
+    "india-eez-fill", "india-eez-line", "scene-footprint-line", "slick-fill", "slick-line", "slick-centroid",
+    "source-fill", "source-line", "forecast-fill-50", "forecast-fill-80", "forecast-fill-95", "forecast-outline-95",
+    "hindcast-line-halo", "hindcast-line", "vessel-tracks", "vessel-markers", "vessel-rank-labels"
   ]
 };
+
+const ALL_LAYER_IDS = Array.from(new Set(Object.values(phaseLayers).flat().concat("case-aoi-line")));
+
+const FORECAST_TARGET_OPACITY: Record<string, number> = {
+  "forecast-fill-50": 0.34,
+  "forecast-fill-80": 0.24,
+  "forecast-fill-95": 0.14
+};
+
+function phaseHasHindcast(phase: OperationPhase) {
+  return phase === "hindcast" || phase === "forecast" || phase === "ais" || phase === "ranking";
+}
+function phaseHasForecast(phase: OperationPhase) {
+  return phase === "forecast" || phase === "ais" || phase === "ranking";
+}
+
+// ---------------------------------------------------------------------------
+// Fully offline base style. The previous version depended on live raster
+// tiles from a public CDN - on a locked-down network (common at demo venues)
+// those requests silently fail and the map area stays blank. Everything here
+// is generated locally, so the map always renders regardless of network.
+// ---------------------------------------------------------------------------
+
+function buildOfflineStyle(): StyleSpecification {
+  return {
+    version: 8,
+    sources: {},
+    layers: [
+      { id: "ocean-background", type: "background", paint: { "background-color": "#DCEEF7" } }
+    ]
+  };
+}
+
+function buildGraticule(bounds: [[number, number], [number, number]], step = 5): GeoJSON.FeatureCollection<GeoJSON.LineString> {
+  const [[minLon, minLat], [maxLon, maxLat]] = bounds;
+  const features: GeoJSON.Feature<GeoJSON.LineString>[] = [];
+  for (let lon = Math.ceil(minLon / step) * step; lon <= maxLon; lon += step) {
+    features.push(featureLine([[lon, minLat], [lon, maxLat]], {}));
+  }
+  for (let lat = Math.ceil(minLat / step) * step; lat <= maxLat; lat += step) {
+    features.push(featureLine([[minLon, lat], [maxLon, lat]], {}));
+  }
+  return { type: "FeatureCollection", features };
+}
 
 export function MapCanvas({ caseAoi, embedded = false, phase = "eez" }: { caseAoi?: GeoJSON.Polygon; embedded?: boolean; phase?: OperationPhase }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<Map | null>(null);
+  const markersRef = useRef<{ hindcast?: maplibregl.Marker; forecast?: maplibregl.Marker }>({});
+  const prevPhaseRef = useRef<OperationPhase | null>(null);
+  const cancelAnimRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
+    const container = containerRef.current;
+
     const map = new maplibregl.Map({
-      container: containerRef.current,
-      style: investigationMapStyle,
+      container,
+      style: buildOfflineStyle(),
       center: [80.5, 14.8],
-      zoom: 4.3
+      zoom: 4.3,
+      attributionControl: false
     });
     mapRef.current = map;
-    window.requestAnimationFrame(() => map.resize());
+
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+
+    map.on("error", (event) => {
+      // Surface style/source problems in the console instead of a silent blank map.
+      // eslint-disable-next-line no-console
+      console.error("[MapCanvas] maplibre error:", event.error?.message ?? event);
+    });
+
     map.on("load", () => {
       addLayers(map, caseAoi);
+      installHoverPopups(map);
+      markersRef.current = installLabelMarkers(map);
       fitPhase(map, phase);
-      setLayerVisibility(map, phase);
+      applyPhase(map, phase, prevPhaseRef.current, markersRef.current, cancelAnimRef, false);
+      prevPhaseRef.current = phase;
     });
+
+    // A grid layout can settle its size a frame or two after mount; a single
+    // rAF resize is not always enough. Watch the container continuously so
+    // the canvas is never stuck at a stale (sometimes 0x0) size.
+    const resizeObserver = new ResizeObserver(() => map.resize());
+    resizeObserver.observe(container);
+
     return () => {
+      resizeObserver.disconnect();
+      cancelAnimRef.current?.();
+      Object.values(markersRef.current).forEach((marker) => marker?.remove());
       map.remove();
       mapRef.current = null;
+      prevPhaseRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [caseAoi]);
 
   useEffect(() => {
-    if (!mapRef.current?.loaded()) return;
-    setLayerVisibility(mapRef.current, phase);
-    fitPhase(mapRef.current, phase);
+    const map = mapRef.current;
+    if (!map || !map.loaded()) return;
+    fitPhase(map, phase);
+    applyPhase(map, phase, prevPhaseRef.current, markersRef.current, cancelAnimRef, true);
+    prevPhaseRef.current = phase;
   }, [phase, caseAoi]);
 
   return (
     <div className={`relative h-full w-full overflow-hidden bg-neutral-100 ${embedded ? "min-h-full" : "min-h-[calc(100vh-104px)]"}`}>
       <div ref={containerRef} className="absolute inset-0" />
-      {!embedded && <StageOverlay phase={phase} />}
       {!embedded && (
         <>
           <MapControls />
@@ -156,39 +231,74 @@ export function MapCanvas({ caseAoi, embedded = false, phase = "eez" }: { caseAo
   );
 }
 
+// ---------------------------------------------------------------------------
+// Layer construction. Order below is draw order (later = on top) - this is
+// the fix for "hindcast disappears once forecast starts": the hindcast line
+// (plus a white halo for contrast) is now added AFTER the forecast fill/line
+// layers, so it always renders above the forecast envelope instead of being
+// painted over by it.
+// ---------------------------------------------------------------------------
+
 function addLayers(map: Map, caseAoi?: GeoJSON.Polygon) {
+  map.addSource("graticule", { type: "geojson", data: buildGraticule(INDIA_EEZ_BOUNDS) });
+  map.addLayer({ id: "graticule-line", type: "line", source: "graticule", paint: { "line-color": "#B9D3E6", "line-width": 0.6, "line-opacity": 0.5 } });
+
   map.addSource("india-land-context", { type: "geojson", data: featureMultiPolygon(indiaLandContext) });
-  map.addLayer({ id: "india-land-fill", type: "fill", source: "india-land-context", paint: { "fill-color": "#FFFFFF", "fill-opacity": 0.78 } });
+  map.addLayer({ id: "india-land-fill", type: "fill", source: "india-land-context", paint: { "fill-color": "#F5F7F5", "fill-opacity": 0.95 } });
   map.addLayer({ id: "india-land-line", type: "line", source: "india-land-context", paint: { "line-color": "#9CA3AF", "line-width": 1.2 } });
 
-  map.addSource("india-eez", { type: "geojson", data: featurePolygon(indiaEezOutline) });
-  map.addLayer({ id: "india-eez-fill", type: "fill", source: "india-eez", paint: { "fill-color": "#DDEAF7", "fill-opacity": 0.34 } }, "india-land-fill");
+  map.addSource("india-eez", { type: "geojson", data: featurePolygon(indiaEezOutline, { label: "India EEZ operational window" }) });
+  map.addLayer({ id: "india-eez-fill", type: "fill", source: "india-eez", paint: { "fill-color": "#D9EFFF", "fill-opacity": 0.42 } }, "india-land-fill");
   map.addLayer({ id: "india-eez-line", type: "line", source: "india-eez", paint: { "line-color": "#1D4E89", "line-width": 2.8, "line-dasharray": [2, 2] } });
 
-  map.addSource("case-aoi", { type: "geojson", data: featurePolygon(caseAoi ?? operationalCase.aoi as GeoJSON.Polygon) });
+  map.addSource("case-aoi", { type: "geojson", data: featurePolygon(caseAoi ?? operationalCase.aoi as GeoJSON.Polygon, { label: "Case AOI", detail: "Arabian Sea investigation window" }) });
   map.addLayer({ id: "case-aoi-line", type: "line", source: "case-aoi", paint: { "line-color": "#1D4E89", "line-width": 1.5, "line-dasharray": [1, 1] } });
 
-  map.addSource("scene-footprint", { type: "geojson", data: featurePolygon(sceneFootprint) });
-  map.addLayer({ id: "scene-footprint-fill", type: "fill", source: "scene-footprint", paint: { "fill-color": "#EEF3FA", "fill-opacity": 0.36 } });
-  map.addLayer({ id: "scene-footprint-line", type: "line", source: "scene-footprint", paint: { "line-color": "#1D4E89", "line-width": 2 } });
+  map.addSource("scene-footprint", { type: "geojson", data: featurePolygon(sceneFootprint, { label: "SAR scene footprint", detail: "Validated inside India EEZ" }) });
+  map.addLayer({ id: "scene-footprint-fill", type: "fill", source: "scene-footprint", paint: { "fill-color": "#E0F2FE", "fill-opacity": 0.38 } });
+  map.addLayer({ id: "scene-footprint-line", type: "line", source: "scene-footprint", paint: { "line-color": "#0284C7", "line-width": 2.2 } });
 
-  map.addSource("slicks", { type: "geojson", data: { type: "Feature", properties: { confidence: operationalSlick.confidence }, geometry: operationalSlick.geometry as GeoJSON.MultiPolygon } });
-  map.addLayer({ id: "slick-fill", type: "fill", source: "slicks", paint: { "fill-color": "#333333", "fill-opacity": 0.62 } });
-  map.addLayer({ id: "slick-line", type: "line", source: "slicks", paint: { "line-color": "#111827", "line-width": 2.5 } });
+  map.addSource("slicks", { type: "geojson", data: { type: "Feature", properties: { label: "Oil slick polygon", detail: `Confidence ${operationalSlick.confidence}` }, geometry: operationalSlick.geometry as GeoJSON.MultiPolygon } });
+  map.addLayer({ id: "slick-fill", type: "fill", source: "slicks", paint: { "fill-color": "#262626", "fill-opacity": 0.68 } });
+  map.addLayer({ id: "slick-line", type: "line", source: "slicks", paint: { "line-color": "#0F172A", "line-width": 2.8 } });
 
-  map.addSource("slick-centroid-source", { type: "geojson", data: featurePoint(operationalSlick.centroid.coordinates as [number, number], {}) });
+  map.addSource("slick-centroid-source", { type: "geojson", data: featurePoint(operationalSlick.centroid.coordinates as [number, number], { label: "Oil slick centroid", detail: "73.045, 18.915" }) });
   map.addLayer({ id: "slick-centroid", type: "circle", source: "slick-centroid-source", paint: { "circle-color": "#FFFFFF", "circle-radius": 4, "circle-stroke-color": "#111827", "circle-stroke-width": 2 } });
 
-  map.addSource("source-region", { type: "geojson", data: featurePolygon(operationalSource.probable_source_region as GeoJSON.Polygon) });
-  map.addLayer({ id: "source-fill", type: "fill", source: "source-region", paint: { "fill-color": "#17324D", "fill-opacity": 0.22 } });
-  map.addLayer({ id: "source-line", type: "line", source: "source-region", paint: { "line-color": "#17324D", "line-width": 2.5 } });
+  map.addSource("source-region", { type: "geojson", data: featurePolygon(operationalSource.probable_source_region as GeoJSON.Polygon, { label: "Hindcast source region", detail: "Release window 24 Aug 06:00-25 Aug 18:00" }) });
+  map.addLayer({ id: "source-fill", type: "fill", source: "source-region", paint: { "fill-color": "#0EA5E9", "fill-opacity": 0.3, "fill-opacity-transition": { duration: 600, delay: 0 } } });
+  map.addLayer({ id: "source-line", type: "line", source: "source-region", paint: { "line-color": "#0369A1", "line-width": 3.4 } });
 
-  map.addSource("hindcast", { type: "geojson", data: featureLine([[73.05, 18.92], [72.99, 18.87], [72.91, 18.82], [72.79, 18.76]], {}) });
-  map.addLayer({ id: "hindcast-line", type: "line", source: "hindcast", paint: { "line-color": "#17324D", "line-width": 3, "line-dasharray": [2, 1] } });
+  // Forecast contours BELOW hindcast on purpose (see note above the function).
+  const centroid = operationalSlick.centroid.coordinates as [number, number];
+  map.addSource("forecast", { type: "geojson", data: buildForecastContours(operationalForecast.contours[0].polygon as GeoJSON.Polygon, centroid) });
+  ([50, 80, 95] as const).forEach((percentile) => {
+    map.addLayer({
+      id: `forecast-fill-${percentile}`,
+      type: "fill",
+      source: "forecast",
+      filter: ["==", ["get", "percentile"], percentile],
+      paint: {
+        "fill-color": "#F97316",
+        "fill-opacity": FORECAST_TARGET_OPACITY[`forecast-fill-${percentile}`],
+        "fill-opacity-transition": { duration: 700, delay: 0 }
+      }
+    });
+  });
+  map.addLayer({
+    id: "forecast-outline-95",
+    type: "line",
+    source: "forecast",
+    filter: ["==", ["get", "percentile"], 95],
+    paint: { "line-color": "#EA580C", "line-width": 2.6, "line-dasharray": [1, 1.4], "line-opacity": 0.9, "line-opacity-transition": { duration: 700, delay: 0 } }
+  });
 
-  map.addSource("forecast", { type: "geojson", data: featurePolygon(operationalForecast.contours[2].polygon as GeoJSON.Polygon) });
-  map.addLayer({ id: "forecast-fill", type: "fill", source: "forecast", paint: { "fill-color": "#5E4A1F", "fill-opacity": 0.2 } });
-  map.addLayer({ id: "forecast-line", type: "line", source: "forecast", paint: { "line-color": "#5E4A1F", "line-width": 2.5 } });
+  // Hindcast trajectory: added last (on top) with a white halo underneath for
+  // contrast, and starts as a single point - it is grown into the full path
+  // by animateHindcastGrowth() the first time the "hindcast" phase is entered.
+  map.addSource("hindcast", { type: "geojson", data: featureLine([hindcastCoords[0]], { label: "Euler hindcast trajectory", detail: "Backward drift to probable source" }) });
+  map.addLayer({ id: "hindcast-line-halo", type: "line", source: "hindcast", paint: { "line-color": "#FFFFFF", "line-width": 7, "line-opacity": 0.85 } });
+  map.addLayer({ id: "hindcast-line", type: "line", source: "hindcast", paint: { "line-color": "#2563EB", "line-width": 4, "line-opacity": 0.95, "line-dasharray": [2, 1] } });
 
   map.addSource("vessel-tracks-source", { type: "geojson", data: trackFeatures });
   map.addLayer({
@@ -214,82 +324,270 @@ function addLayers(map: Map, caseAoi?: GeoJSON.Polygon) {
       "circle-stroke-color": ["case", ["<=", ["get", "rank"], 3], "#FFFFFF", "#6B7280"]
     }
   });
+  // Rank number only, always on - the vessel NAME is intentionally reserved
+  // for the hover popup (installHoverPopups) so the map stays readable and
+  // names are surfaced "explicitly on hover" as requested.
+  map.addLayer({
+    id: "vessel-rank-labels",
+    type: "symbol",
+    source: "vessels",
+    layout: { "text-field": ["concat", "#", ["get", "rank"]], "text-size": 11, "text-offset": [0, 1.3], "text-anchor": "top", "text-font": ["Open Sans Bold"] },
+    paint: { "text-color": "#111827", "text-halo-color": "#FFFFFF", "text-halo-width": 1.4 }
+  });
+}
+
+function buildForecastContours(basePolygon: GeoJSON.Polygon, centroid: [number, number]): GeoJSON.FeatureCollection<GeoJSON.Polygon> {
+  const ring = basePolygon.coordinates[0] as [number, number][];
+  const labels: Record<50 | 80 | 95, string> = { 50: "Forecast 50% contour", 80: "Forecast 80% contour", 95: "Forecast 95% contour" };
+  const features = ([50, 80, 95] as const).map((percentile) => {
+    const scaled = scaleRingAroundPoint(ring, centroid, forecastScaleByPercentile[percentile]);
+    return featurePolygon({ type: "Polygon", coordinates: [scaled] }, {
+      percentile,
+      label: labels[percentile],
+      detail: "95% spread contour, next 48 hours"
+    });
+  });
+  return { type: "FeatureCollection", features };
+}
+
+function scaleRingAroundPoint(ring: [number, number][], center: [number, number], factor: number): [number, number][] {
+  return ring.map(([x, y]) => [center[0] + (x - center[0]) * factor, center[1] + (y - center[1]) * factor]);
+}
+
+function centroidOfRing(ring: [number, number][]): [number, number] {
+  const pts = ring.slice(0, -1);
+  const sum = pts.reduce((acc, [x, y]) => [acc[0] + x, acc[1] + y], [0, 0]);
+  return [sum[0] / pts.length, sum[1] / pts.length];
+}
+
+// ---------------------------------------------------------------------------
+// DOM markers (real lng/lat anchored, so they never drift out of place when
+// the map pans or zooms - unlike the old fixed-percentage CSS overlay).
+// ---------------------------------------------------------------------------
+
+function installLabelMarkers(map: Map) {
+  const sourceCentroid = centroidOfRing(operationalSource.probable_source_region.coordinates[0] as [number, number][]);
+  const hindcastLabel = document.createElement("div");
+  hindcastLabel.className = "map-chip map-chip-hindcast";
+  hindcastLabel.textContent = "Probable source: 24 Aug 06:00-25 Aug 18:00";
+  const hindcastMarker = new maplibregl.Marker({ element: hindcastLabel, anchor: "bottom" }).setLngLat(sourceCentroid).addTo(map);
+
+  const forecastRing = scaleRingAroundPoint(operationalForecast.contours[0].polygon.coordinates[0] as [number, number][], operationalSlick.centroid.coordinates as [number, number], forecastScaleByPercentile[95]);
+  const forecastCentroid = centroidOfRing(forecastRing);
+  const forecastLabel = document.createElement("div");
+  forecastLabel.className = "map-chip map-chip-forecast";
+  forecastLabel.textContent = "Forecast +48h";
+  const forecastMarker = new maplibregl.Marker({ element: forecastLabel, anchor: "top" }).setLngLat([forecastCentroid[0] + 0.18, forecastCentroid[1] + 0.1]).addTo(map);
+
+  hindcastLabel.style.display = "none";
+  forecastLabel.style.display = "none";
+
+  return { hindcast: hindcastMarker, forecast: forecastMarker };
+}
+
+function updateMarkerVisibility(markers: { hindcast?: maplibregl.Marker; forecast?: maplibregl.Marker }, phase: OperationPhase) {
+  const hindcastEl = markers.hindcast?.getElement();
+  const forecastEl = markers.forecast?.getElement();
+  if (hindcastEl) hindcastEl.style.display = phaseHasHindcast(phase) ? "block" : "none";
+  if (forecastEl) forecastEl.style.display = phaseHasForecast(phase) ? "block" : "none";
+}
+
+// ---------------------------------------------------------------------------
+// Animation: growing the hindcast line and staggering the forecast contours
+// in, instead of the previous "just switch phases and hope" approach.
+// ---------------------------------------------------------------------------
+
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t;
+}
+
+function sliceLine(coords: [number, number][], t: number): [number, number][] {
+  if (t >= 1) return coords;
+  const distances: number[] = [];
+  let total = 0;
+  for (let i = 1; i < coords.length; i++) {
+    const d = Math.hypot(coords[i][0] - coords[i - 1][0], coords[i][1] - coords[i - 1][1]);
+    distances.push(d);
+    total += d;
+  }
+  if (total === 0) return coords;
+  let remaining = t * total;
+  const out: [number, number][] = [coords[0]];
+  for (let i = 0; i < distances.length; i++) {
+    if (remaining <= distances[i]) {
+      const segT = distances[i] === 0 ? 0 : remaining / distances[i];
+      out.push([lerp(coords[i][0], coords[i + 1][0], segT), lerp(coords[i][1], coords[i + 1][1], segT)]);
+      return out;
+    }
+    out.push(coords[i + 1]);
+    remaining -= distances[i];
+  }
+  return out;
+}
+
+function animateHindcastGrowth(map: Map, durationMs = 1600) {
+  let raf = 0;
+  let start: number | null = null;
+  let cancelled = false;
+
+  function tick(ts: number) {
+    if (cancelled) return;
+    if (start === null) start = ts;
+    const t = Math.min((ts - start) / durationMs, 1);
+    const eased = 1 - Math.pow(1 - t, 3);
+    const source = map.getSource("hindcast") as GeoJSONSource | undefined;
+    source?.setData(featureLine(sliceLine(hindcastCoords, eased), { label: "Euler hindcast trajectory", detail: "Backward drift to probable source" }));
+    if (t < 1) raf = window.requestAnimationFrame(tick);
+  }
+  raf = window.requestAnimationFrame(tick);
+  return () => {
+    cancelled = true;
+    window.cancelAnimationFrame(raf);
+  };
+}
+
+function setHindcastComplete(map: Map) {
+  const source = map.getSource("hindcast") as GeoJSONSource | undefined;
+  source?.setData(featureLine(hindcastCoords, { label: "Euler hindcast trajectory", detail: "Backward drift to probable source" }));
+}
+
+function animateForecastReveal(map: Map) {
+  const steps: Array<[string, number]> = [["forecast-fill-50", 0], ["forecast-fill-80", 260], ["forecast-fill-95", 520]];
+  steps.forEach(([layerId, delay]) => {
+    if (!map.getLayer(layerId)) return;
+    map.setPaintProperty(layerId, "fill-opacity", 0);
+    window.setTimeout(() => {
+      if (map.getLayer(layerId)) map.setPaintProperty(layerId, "fill-opacity", FORECAST_TARGET_OPACITY[layerId]);
+    }, delay);
+  });
+  if (map.getLayer("forecast-outline-95")) {
+    map.setPaintProperty("forecast-outline-95", "line-opacity", 0);
+    window.setTimeout(() => {
+      if (map.getLayer("forecast-outline-95")) map.setPaintProperty("forecast-outline-95", "line-opacity", 0.9);
+    }, 520);
+  }
+}
+
+function setForecastComplete(map: Map) {
+  Object.entries(FORECAST_TARGET_OPACITY).forEach(([layerId, opacity]) => {
+    if (map.getLayer(layerId)) map.setPaintProperty(layerId, "fill-opacity", opacity);
+  });
+  if (map.getLayer("forecast-outline-95")) map.setPaintProperty("forecast-outline-95", "line-opacity", 0.9);
+}
+
+// ---------------------------------------------------------------------------
+// Orchestration - decides, on every phase change, whether to play the growth
+// animation (only the moment a phase is freshly entered) or just snap to its
+// resolved end-state (arriving directly on a later stage, e.g. by clicking
+// "ranking" straight away). Either way the previous stage's layers are left
+// exactly as they were: nothing is torn down between stages any more.
+// ---------------------------------------------------------------------------
+
+function applyPhase(
+  map: Map,
+  phase: OperationPhase,
+  previousPhase: OperationPhase | null,
+  markers: { hindcast?: maplibregl.Marker; forecast?: maplibregl.Marker },
+  cancelAnimRef: MutableRefObject<(() => void) | null>,
+  isTransition: boolean
+) {
+  setLayerVisibility(map, phase);
+  updateMarkerVisibility(markers, phase);
+
+  cancelAnimRef.current?.();
+  cancelAnimRef.current = null;
+
+  const enteringHindcast = phase === "hindcast" && (!isTransition || previousPhase !== "hindcast");
+  const enteringForecast = phase === "forecast" && (!isTransition || previousPhase !== "forecast");
+
+  if (enteringHindcast) {
+    cancelAnimRef.current = animateHindcastGrowth(map);
+  } else if (phaseHasHindcast(phase)) {
+    setHindcastComplete(map);
+  }
+
+  if (enteringForecast) {
+    animateForecastReveal(map);
+  } else if (phaseHasForecast(phase)) {
+    setForecastComplete(map);
+  }
 }
 
 function setLayerVisibility(map: Map, phase: OperationPhase) {
   const visible = new Set(phaseLayers[phase]);
-  Object.values(phaseLayers).flat().concat("case-aoi-line").forEach((layerId) => {
-    if (map.getLayer(layerId)) {
-      map.setLayoutProperty(layerId, "visibility", visible.has(layerId) ? "visible" : "none");
-    }
+  ALL_LAYER_IDS.forEach((layerId) => {
+    if (!map.getLayer(layerId)) return;
+    const isVisible = layerId === "case-aoi-line" ? phase !== "monitoring" : visible.has(layerId);
+    map.setLayoutProperty(layerId, "visibility", isVisible ? "visible" : "none");
   });
 }
 
 function fitPhase(map: Map, phase: OperationPhase) {
-  map.fitBounds(INDIA_EEZ_BOUNDS, { padding: phase === "monitoring" || phase === "eez" ? 50 : 70, animate: false });
+  map.fitBounds(INDIA_EEZ_BOUNDS, { padding: phase === "monitoring" || phase === "eez" ? 50 : 70, animate: true, duration: 600 });
 }
 
-function StageOverlay({ phase }: { phase: OperationPhase }) {
-  return (
-    <div className="pointer-events-none absolute inset-0 z-10">
-      {(phase === "detection" || phase === "hindcast" || phase === "forecast" || phase === "ais" || phase === "ranking") && (
-        <div className={`slick-mask-draw slick-irregular absolute left-[49%] top-[45%] h-24 w-36 border-2 border-neutral-900 bg-neutral-900/30 ${phase === "detection" ? "" : "opacity-70"}`} />
-      )}
-      {phase === "hindcast" && (
-        <>
-          <div className="hindcast-slick-path absolute left-[50%] top-[46%] h-28 w-44 border-2" />
-          <div className="absolute left-[44%] top-[50%] rounded-sm bg-neutral-0 px-2 py-1 text-caption font-medium text-navy-900 shadow-elevation-1">Probable source: 24 Aug 06:00-25 Aug 18:00</div>
-        </>
-      )}
-      {phase === "forecast" && (
-        <>
-          <div className="forecast-spread absolute left-[48%] top-[44%] h-28 w-44 border-2" />
-          <div className="absolute left-[54%] top-[58%] rounded-sm bg-neutral-0 px-2 py-1 font-mono text-caption text-neutral-900 shadow-elevation-1">Forecast +48h</div>
-        </>
-      )}
-      {(phase === "ais" || phase === "ranking") && <ShipOverlay ranked={phase === "ranking"} />}
-    </div>
-  );
+function installHoverPopups(map: Map) {
+  const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12 });
+  const hoverLayerConfig: Record<string, { title: string; color: string }> = {
+    "india-eez-fill": { title: "India EEZ", color: "#1D4E89" },
+    "scene-footprint-fill": { title: "SAR scene footprint", color: "#0284C7" },
+    "slick-fill": { title: "Oil slick polygon", color: "#111827" },
+    "slick-centroid": { title: "Slick centroid", color: "#111827" },
+    "source-fill": { title: "Hindcast source region", color: "#0369A1" },
+    "hindcast-line": { title: "Euler hindcast trajectory", color: "#2563EB" },
+    "forecast-fill-50": { title: "Forecast - 50% contour", color: "#EA580C" },
+    "forecast-fill-80": { title: "Forecast - 80% contour", color: "#EA580C" },
+    "forecast-fill-95": { title: "Forecast - 95% contour", color: "#EA580C" },
+    "vessel-markers": { title: "Vessel", color: "#B3261E" }
+  };
+
+  Object.keys(hoverLayerConfig).forEach((layerId) => {
+    map.on("mouseenter", layerId, (event) => {
+      map.getCanvas().style.cursor = "pointer";
+      const feature = event.features?.[0];
+      popup.setLngLat(event.lngLat).setHTML(popupHtml(hoverLayerConfig[layerId], feature?.properties)).addTo(map);
+    });
+    map.on("mousemove", layerId, (event) => {
+      popup.setLngLat(event.lngLat);
+    });
+    map.on("mouseleave", layerId, () => {
+      map.getCanvas().style.cursor = "";
+      popup.remove();
+    });
+  });
 }
 
-function ShipOverlay({ ranked }: { ranked: boolean }) {
-  const ships = [
-    { name: "MMSI 419000111", x: "45%", y: "47%", rank: 1, score: 78 },
-    { name: "MMSI 419000222", x: "52%", y: "55%", rank: 2, score: 61 },
-    { name: "MMSI 419000333", x: "39%", y: "42%", rank: 3, score: 57 },
-    { name: "MMSI 419000444", x: "61%", y: "60%", rank: 4, score: 32 },
-    { name: "MMSI 419000555", x: "33%", y: "58%", rank: 5, score: 29 }
-  ];
-  return (
-    <>
-      {ships.map((ship) => {
-        const highlighted = ranked && ship.rank <= 3;
-        return (
-          <div className="ship-track absolute flex items-center gap-1" style={{ left: ship.x, top: ship.y }} key={ship.name}>
-            <span className={`grid h-8 w-8 place-items-center rounded-full border bg-neutral-0 shadow-elevation-1 ${highlighted ? "border-status-error text-status-error" : "border-neutral-300 text-neutral-500"}`}>
-              <Ship size={18} strokeWidth={1.7} />
-            </span>
-            {highlighted && <span className="rounded-sm bg-neutral-0 px-2 py-1 font-mono text-caption text-status-error shadow-elevation-1">#{ship.rank} {ship.score}</span>}
-          </div>
-        );
-      })}
-    </>
-  );
+function popupHtml(config: { title: string; color: string }, properties: GeoJSON.GeoJsonProperties | undefined) {
+  const name = properties?.name ? String(properties.name) : null;
+  const heading = name ?? String(properties?.label ?? config.title);
+  const mmsi = properties?.mmsi ? `<div>MMSI ${properties.mmsi}</div>` : "";
+  const detail = properties?.detail ? `<div>${properties.detail}</div>` : "";
+  const rank = properties?.rank ? `<div>Rank #${properties.rank}${properties.score ? ` - score ${properties.score}` : ""}</div>` : "";
+  return `<div class="map-popup" style="border-left-color:${config.color}"><span class="map-popup-kicker" style="color:${config.color}">${config.title}</span><strong>${heading}</strong>${mmsi}${detail}${rank}</div>`;
 }
 
 function TimelineStrip({ phase }: { phase: OperationPhase }) {
-  const label = phase === "forecast" ? "Forecast: next 48 hours" : phase === "hindcast" ? "Hindcast: release window" : "Scene and attribution timeline";
+  const labels: Record<OperationPhase, string> = {
+    monitoring: "Automatic SAR ingestion",
+    eez: "India EEZ validation",
+    detection: "Oil spill detection",
+    hindcast: "Hindcast: release window",
+    forecast: "Forecast: next 48 hours",
+    ais: "AIS correlation",
+    ranking: "Transparent suspect ranking"
+  };
+  const label = labels[phase];
   return (
     <div className="grid grid-cols-[190px_1fr_150px] items-center gap-4 text-caption">
       <div className="font-mono text-neutral-700">20 Aug - 27 Aug 2026</div>
-      <input aria-label={label} className="w-full accent-navy-900" type="range" min={0} max={48} step={6} defaultValue={phase === "forecast" ? 48 : 24} />
+      <input aria-label={label} className="w-full accent-navy-900" type="range" min={0} max={48} step={6} value={phase === "forecast" || phase === "ais" || phase === "ranking" ? 48 : phase === "hindcast" ? 24 : 0} readOnly />
       <div className="text-right text-neutral-500">{label}</div>
     </div>
   );
 }
 
-function featurePolygon(geometry: GeoJSON.Polygon): GeoJSON.Feature<GeoJSON.Polygon> {
-  return { type: "Feature", properties: {}, geometry };
+function featurePolygon(geometry: GeoJSON.Polygon, properties: GeoJSON.GeoJsonProperties = {}): GeoJSON.Feature<GeoJSON.Polygon> {
+  return { type: "Feature", properties, geometry };
 }
 
 function featureMultiPolygon(geometry: GeoJSON.MultiPolygon): GeoJSON.Feature<GeoJSON.MultiPolygon> {

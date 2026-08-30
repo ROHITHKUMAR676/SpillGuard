@@ -12,7 +12,7 @@ import {
   Ship,
   UploadCloud
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { DragDropTab } from "../components/intake/DragDropTab";
 import { Button } from "../components/shared/Button";
@@ -127,36 +127,62 @@ const rankedVessels: RankedVessel[] = [
 export function OperationalConsole() {
   const [mode, setMode] = useState<IntakeMode>("automatic");
   const [activeIndex, setActiveIndex] = useState(0);
+  const [highestCompletedIndex, setHighestCompletedIndex] = useState(0);
   const [running, setRunning] = useState(true);
   const stages = mode === "automatic" ? automaticStages : uploadStages;
   const activeStage = stages[activeIndex];
-  const progress = useMemo(() => Math.round(((activeIndex + 1) / stages.length) * 100), [activeIndex, stages.length]);
+  const completedProgress = Math.round(((highestCompletedIndex + 1) / stages.length) * 100);
 
   useEffect(() => {
     if (mode !== "automatic" || !running || activeIndex >= stages.length - 1) return;
-    const timer = window.setTimeout(() => setActiveIndex((current) => Math.min(current + 1, stages.length - 1)), 4200);
+    const timer = window.setTimeout(() => {
+      setActiveIndex((current) => {
+        const next = Math.min(current + 1, stages.length - 1);
+        setHighestCompletedIndex((completed) => Math.max(completed, next));
+        if (next === stages.length - 1) setRunning(false);
+        return next;
+      });
+    }, 4200);
     return () => window.clearTimeout(timer);
   }, [activeIndex, mode, running, stages.length]);
 
   async function startUpload() {
     setMode("upload");
     setActiveIndex(0);
+    setHighestCompletedIndex(0);
     setRunning(true);
   }
 
   function selectMode(nextMode: IntakeMode) {
     setMode(nextMode);
     setActiveIndex(0);
+    setHighestCompletedIndex(0);
     setRunning(nextMode === "automatic");
   }
 
   function advance() {
-    setRunning(true);
-    setActiveIndex((current) => Math.min(current + 1, stages.length - 1));
+    setRunning(false);
+    setActiveIndex((current) => {
+      const next = Math.min(current + 1, stages.length - 1);
+      setHighestCompletedIndex((completed) => Math.max(completed, next));
+      return next;
+    });
   }
 
   function rewind() {
+    setRunning(false);
     setActiveIndex((current) => Math.max(current - 1, 0));
+  }
+
+  function resume() {
+    if (activeIndex >= stages.length - 1) return;
+    setRunning(true);
+  }
+
+  function replayFromStart() {
+    setActiveIndex(0);
+    setHighestCompletedIndex(0);
+    setRunning(true);
   }
 
   return (
@@ -201,18 +227,18 @@ export function OperationalConsole() {
                 className={`w-full rounded-md border p-3 text-left transition-none ${
                   index === activeIndex
                     ? "border-navy-500 bg-navy-50"
-                    : index < activeIndex
+                    : index <= highestCompletedIndex
                       ? "border-status-success bg-status-success-bg"
                       : "border-neutral-200 bg-neutral-0"
                 }`}
                 onClick={() => {
                   setActiveIndex(index);
-                  setRunning(true);
+                  setRunning(false);
                 }}
               >
                 <div className="flex items-start gap-3">
                   <span className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-caption ${
-                    index < activeIndex
+                    index <= highestCompletedIndex && index !== activeIndex
                       ? "bg-status-success text-white"
                       : index === activeIndex && running
                         ? "bg-navy-500 text-white"
@@ -242,14 +268,26 @@ export function OperationalConsole() {
             <p className="text-caption uppercase text-neutral-500">Current stage</p>
             <h2 className="mt-1 text-h2 text-neutral-900">{activeStage.label}</h2>
           </div>
-          <span className="font-mono text-caption text-neutral-500">{progress}%</span>
+          <span className="font-mono text-caption text-neutral-500">{completedProgress}%</span>
+        </div>
+
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <span className={`flex items-center gap-2 text-caption ${running ? "text-status-running" : "text-neutral-500"}`}>
+            <span className={`h-2 w-2 rounded-full ${running ? "bg-status-running pulse-dot" : "bg-neutral-300"}`} />
+            {running ? "Auto-playing" : activeIndex === stages.length - 1 ? "Sequence complete - paused" : `Paused on stage ${activeIndex + 1}`}
+          </span>
+          {!running && (
+            activeIndex === stages.length - 1
+              ? <button className="text-caption font-medium text-navy-500 underline" onClick={replayFromStart}>Replay from start</button>
+              : <button className="text-caption font-medium text-navy-500 underline" onClick={resume}>Resume auto-play</button>
+          )}
         </div>
 
         <section className="mt-4 rounded-md border border-neutral-200 bg-neutral-50 p-4">
           <div className="flex items-center gap-2 text-body-medium text-neutral-900">{iconFor(activeStage.id)} {activeStage.status}</div>
           <p className="mt-2 text-body text-neutral-700">{activeStage.detail}</p>
           <div className="mt-4 h-2 rounded-full bg-neutral-200">
-            <div className="h-2 rounded-full bg-navy-500" style={{ width: `${progress}%` }} />
+            <div className="h-2 rounded-full bg-navy-500" style={{ width: `${completedProgress}%` }} />
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2">
             <Button variant="secondary" disabled={activeIndex === 0} onClick={rewind}>Previous</Button>
