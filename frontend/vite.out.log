@@ -41,3 +41,12 @@ Port 5174 is in use, trying another one...
 8:07:28 am [vite] hmr update /src/map/MapCanvas.tsx, /src/styles.css
 8:07:40 am [vite] hmr update /src/styles.css
 8:07:52 am [vite] hmr update /src/screens/OperationalConsole.tsx, /src/styles.css
+2:02:53 pm [vite] page reload src/types/slick.ts
+2:02:55 pm [vite] hmr update /src/styles.css, /src/screens/CaseIntake.tsx, /src/components/intake/AutomaticIngestTab.tsx
+2:03:32 pm [vite] hmr update /src/screens/SpillPanel.tsx, /src/styles.css
+2:07:32 pm [vite] hmr update /src/screens/CaseIntake.tsx, /src/styles.css
+2:11:22 pm [vite] hmr update /src/styles.css, /src/screens/MapView.tsx, /src/screens/SpillPanel.tsx, /src/screens/CaseList.tsx, /src/screens/SourcePanel.tsx, /src/screens/EvidenceExplorer.tsx, /src/screens/VesselRanking.tsx, /src/screens/CaseIntake.tsx, /src/map/MapCanvas.tsx
+2:16:52 pm [vite] hmr update /src/styles.css, /src/screens/CaseIntake.tsx, /src/components/intake/AutomaticIngestTab.tsx
+2:16:58 pm [vite] page reload src/types/drift.ts
+2:17:07 pm [vite] hmr update /src/styles.css, /src/screens/MapView.tsx, /src/screens/SpillPanel.tsx, /src/screens/CaseList.tsx, /src/screens/SourcePanel.tsx, /src/screens/EvidenceExplorer.tsx, /src/screens/VesselRanking.tsx, /src/screens/CaseIntake.tsx, /src/map/MapCanvas.tsx
+2:17:33 pm [vite] hmr update /src/screens/SourcePanel.tsx, /src/styles.css

@@ -169,6 +169,8 @@ CREATE TABLE attribution_candidates (
   ais_continuity_score DOUBLE PRECISION NOT NULL,
   supporting_evidence TEXT[] NOT NULL DEFAULT '{}',
   contradicting_evidence TEXT[] NOT NULL DEFAULT '{}',
+  raw_features JSONB NOT NULL DEFAULT '{}',
+  score_breakdown JSONB NOT NULL DEFAULT '{}',
   model_version TEXT NOT NULL DEFAULT 'attribution-v1-deterministic',
   rank INT NOT NULL,
   excluded_by_analyst BOOLEAN NOT NULL DEFAULT FALSE,

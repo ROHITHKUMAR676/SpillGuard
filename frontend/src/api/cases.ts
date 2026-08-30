@@ -1,6 +1,8 @@
 import type { Case } from "../types/case";
+import type { ForwardForecast, SourceHypothesis } from "../types/drift";
 import type { GeoJSONPolygon } from "../types/geo";
 import type { Job } from "../types/job";
+import type { OilSlick } from "../types/slick";
 import { api } from "./client";
 
 export interface SceneSearchResult {
@@ -39,3 +41,9 @@ export const triggerVesselAnalysis = (caseId: string) =>
   api<Job>(`/cases/${caseId}/vessel-analysis`, { method: "POST", body: JSON.stringify({}) });
 
 export const getJob = (jobId: string) => api<Job>(`/jobs/${jobId}`);
+
+export const getSlick = (slickId: string) => api<OilSlick>(`/slicks/${slickId}`);
+
+export const getSourceHypothesis = (caseId: string) => api<SourceHypothesis>(`/cases/${caseId}/source-hypothesis`);
+
+export const getForecast = (caseId: string) => api<ForwardForecast>(`/cases/${caseId}/forecast`);

@@ -22,10 +22,10 @@ export const operationalCases: Case[] = [
 export const operationalSlick: OilSlick = {
   id: "slick-9f3a",
   scene_id: "scene-s1c-operational",
-  geometry: { type: "MultiPolygon", coordinates: [[[[68.78, 16.1], [68.88, 16.01], [69.06, 16.04], [69.17, 16.15], [69.09, 16.29], [68.91, 16.34], [68.77, 16.25], [68.71, 16.16], [68.78, 16.1]]]] },
+  geometry: { type: "MultiPolygon", coordinates: [[[[68.886968, 16.147162], [68.921946, 16.115681], [68.984907, 16.126175], [69.023383, 16.164651], [68.9954, 16.21362], [68.93244, 16.231109], [68.883471, 16.199629], [68.862484, 16.168148], [68.886968, 16.147162]]]] },
   area_km2: 142.4,
   perimeter_km: 52.1,
-  centroid: { type: "Point", coordinates: [68.94, 16.18] },
+  centroid: { type: "Point", coordinates: [68.9445, 16.1725] },
   orientation_deg: 42,
   confidence: 0.82,
   possible_lookalike: false,
@@ -39,7 +39,8 @@ export const operationalSource: SourceHypothesis = {
   probable_source_region: { type: "Polygon", coordinates: [[[67.54, 15.43], [67.66, 15.34], [67.82, 15.42], [67.86, 15.58], [67.71, 15.68], [67.55, 15.62], [67.47, 15.51], [67.54, 15.43]]] },
   time_window_start: "2026-08-24T06:00:00Z",
   time_window_end: "2026-08-25T18:00:00Z",
-  confidence: "medium"
+  confidence: "medium",
+  drift_corridor_bearing_deg: 62.5
 };
 
 export const operationalForecast: ForwardForecast = {

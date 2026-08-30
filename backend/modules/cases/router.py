@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from core.db import get_db
 from core.security import create_access_token, decode_access_token, verify_password
 from modules.cases.jobs import enqueue_job
+from modules.attribution.explanation import answer_investigator, explain_candidate
 from schemas.case import CaseCreate, CaseOut
 from schemas.common import JobOut
 from schemas.drift import DriftRunRequest
@@ -43,6 +44,10 @@ class FeedbackRequest(BaseModel):
 
 class ObservationRequest(BaseModel):
     payload: dict[str, Any] = {}
+
+
+class InvestigatorQuestion(BaseModel):
+    question: str
 
 
 def error(status_code: int, code: str, message: str, details: dict | None = None) -> HTTPException:
@@ -185,7 +190,8 @@ def source_hypothesis(id: UUID, db: Session = Depends(get_db)):
             """
             SELECT sh.id, sh.drift_run_id, sh.probability_surface_object_key,
                    ST_AsGeoJSON(sh.probable_source_region)::json AS probable_source_region,
-                   sh.time_window_start, sh.time_window_end, sh.confidence
+                   sh.time_window_start, sh.time_window_end, sh.confidence,
+                   sh.drift_corridor_bearing_deg
             FROM source_hypotheses sh
             JOIN drift_runs dr ON dr.id = sh.drift_run_id
             JOIN oil_slicks os ON os.id = dr.slick_id
@@ -248,16 +254,64 @@ def candidate_evidence(id: UUID, vessel_id: UUID, db: Session = Depends(get_db))
     row = db.execute(
         text(
             """
-            SELECT supporting_evidence, contradicting_evidence
-            FROM attribution_candidates
-            WHERE case_id = :case_id AND vessel_id = :vessel_id
+            SELECT ac.*, v.id AS vessel_id_out, v.mmsi, v.name, v.flag, v.vessel_type
+            FROM attribution_candidates ac
+            JOIN vessels v ON v.id = ac.vessel_id
+            WHERE ac.case_id = :case_id AND ac.vessel_id = :vessel_id
             """
         ),
         {"case_id": str(id), "vessel_id": str(vessel_id)},
     ).mappings().first()
     if not row:
         raise error(status.HTTP_404_NOT_FOUND, "not_found", "Candidate evidence not found")
-    return dict(row)
+    events = db.execute(
+        text(
+            """
+            SELECT id, event_type, start_time, end_time, ST_AsGeoJSON(geometry)::json AS geometry, confidence
+            FROM vessel_events
+            WHERE vessel_id = :vessel_id
+            ORDER BY start_time
+            """
+        ),
+        {"vessel_id": str(vessel_id)},
+    ).mappings().all()
+    candidate = _candidate(row)
+    candidate["raw_features"] = _json_value(row["raw_features"])
+    candidate["score_breakdown"] = _json_value(row["score_breakdown"])
+    candidate["vessel_events"] = [dict(event) for event in events]
+    return candidate
+
+
+@router.post("/cases/{id}/candidates/{vessel_id}/explanation")
+def candidate_explanation(id: UUID, vessel_id: UUID, db: Session = Depends(get_db)):
+    payload = candidate_evidence(id, vessel_id, db)
+    return {"explanation": explain_candidate(payload)}
+
+
+@router.post("/cases/{id}/investigator/ask")
+def investigator_ask(id: UUID, payload: InvestigatorQuestion, db: Session = Depends(get_db)):
+    candidates_payload = []
+    rows = db.execute(
+        text(
+            """
+            SELECT ac.*, v.id AS vessel_id_out, v.mmsi, v.name, v.flag, v.vessel_type
+            FROM attribution_candidates ac
+            JOIN vessels v ON v.id = ac.vessel_id
+            WHERE ac.case_id = :case_id
+            ORDER BY ac.rank
+            """
+        ),
+        {"case_id": str(id)},
+    ).mappings().all()
+    for row in rows:
+        item = _candidate(row)
+        item["raw_features"] = _json_value(row["raw_features"])
+        item["score_breakdown"] = _json_value(row["score_breakdown"])
+        candidates_payload.append(item)
+    if not candidates_payload:
+        raise error(status.HTTP_404_NOT_FOUND, "not_found", "No attribution candidates found")
+    context = {"case_id": str(id), "candidates": candidates_payload}
+    return {"answer": answer_investigator(payload.question, context)}
 
 
 @router.post("/cases/{id}/feedback")
@@ -316,3 +370,7 @@ def _candidate(row) -> dict:
         "model_version": row["model_version"],
         "excluded_by_analyst": row["excluded_by_analyst"],
     }
+
+
+def _json_value(value):
+    return value if isinstance(value, (dict, list)) else json.loads(value or "{}")

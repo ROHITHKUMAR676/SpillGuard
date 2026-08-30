@@ -7,6 +7,7 @@ export interface SourceHypothesis {
   time_window_start: string;
   time_window_end: string;
   confidence: "low" | "medium" | "high";
+  drift_corridor_bearing_deg: number;
 }
 export interface ForecastContour { horizon_hours: number; percentile: 50 | 80 | 95; polygon: GeoJSONPolygon; }
 export interface ForwardForecast { drift_run_id: string; contours: ForecastContour[]; }

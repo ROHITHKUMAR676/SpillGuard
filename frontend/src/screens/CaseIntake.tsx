@@ -203,7 +203,6 @@ function stagesFromJobs(caseId: string, jobs: Partial<Record<PipelineJobType, Jo
   const detect = jobs.detect;
   const drift = jobs.drift;
   const vessel = jobs.vessel_analysis;
-  const slickId = detect?.result_ref ?? "slick-9f3a";
   return [
     { id: "scene", label: "Scene Attached", detail: "Sentinel-1 scene attached.", state: "done", href: `/cases/${caseId}/map` },
     {
@@ -212,7 +211,7 @@ function stagesFromJobs(caseId: string, jobs: Partial<Record<PipelineJobType, Jo
       detail: detailFor(detect, "segmentation inference"),
       job: detect,
       state: jobState(detect),
-      href: detect?.status === "succeeded" ? `/cases/${caseId}/spill/${slickId}` : undefined
+      href: detect?.status === "succeeded" && detect.result_ref ? `/cases/${caseId}/spill/${detect.result_ref}` : undefined
     },
     {
       id: "drift",

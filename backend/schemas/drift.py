@@ -22,6 +22,7 @@ class SourceHypothesis(BaseModel):
     time_window_start: datetime
     time_window_end: datetime
     confidence: Literal["low", "medium", "high"]
+    drift_corridor_bearing_deg: float
 
 
 class ForecastContour(BaseModel):
