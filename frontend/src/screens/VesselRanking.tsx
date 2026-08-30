@@ -1,12 +1,37 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { getCandidates } from "../api/cases";
 import { Button } from "../components/shared/Button";
+import { ErrorState } from "../components/shared/ErrorState";
 import { ScoreBar } from "../components/shared/ScoreBar";
 import { AISSourceFlag } from "../components/shared/AISSourceFlag";
-import { operationalCandidates } from "../data/operational";
+import type { AttributionCandidate } from "../types/attribution";
 
-export function VesselRanking({ navigate }: { navigate: (path: string) => void }) {
+export function VesselRanking({ caseId, navigate }: { caseId: string; navigate: (path: string) => void }) {
   const [excluded, setExcluded] = useState<string[]>([]);
+  const [candidates, setCandidates] = useState<AttributionCandidate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError("");
+    getCandidates(caseId)
+      .then((items) => {
+        if (!cancelled) setCandidates(items);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Could not load attribution candidates.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [caseId]);
+
   return (
     <div className="mx-auto max-w-[1200px] p-6">
       <AISSourceFlag />
@@ -26,8 +51,10 @@ export function VesselRanking({ navigate }: { navigate: (path: string) => void }
           </select>
         </div>
       </div>
+      {loading && <div className="mt-6 rounded-md border border-neutral-200 bg-neutral-0 p-5 text-body text-neutral-600">Loading stored attribution candidates...</div>}
+      {error && <div className="mt-6"><ErrorState message={error} /></div>}
       <div className="mt-4 grid gap-4">
-        {operationalCandidates.map((candidate) => {
+        {!loading && !error && candidates.map((candidate) => {
           const isExcluded = excluded.includes(candidate.id);
           return (
             <article className={`rounded-md border border-neutral-200 bg-neutral-0 p-5 ${isExcluded ? "opacity-55" : ""}`} key={candidate.id}>
@@ -41,7 +68,7 @@ export function VesselRanking({ navigate }: { navigate: (path: string) => void }
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="text" onClick={() => navigate(`/cases/ARB-2026-014/vessels/${candidate.vessel.id}`)}>View evidence</Button>
+                  <Button variant="text" onClick={() => navigate(`/cases/${caseId}/vessels/${candidate.vessel.id}`)}>View evidence</Button>
                   <Button variant="text" onClick={() => setExcluded((items) => [...items, candidate.id])}>Exclude</Button>
                 </div>
               </div>

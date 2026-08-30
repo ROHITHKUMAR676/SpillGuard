@@ -5,6 +5,7 @@ import { DataSourceModeBadge } from "../shared/DataSourceModeBadge";
 export function TopBar({ route, navigate }: { route: string; navigate: (path: string) => void }) {
   const items = [
     ["Operations", "/operations"],
+    ["Cases", "/dashboard"],
     ["Map", "/cases/ARB-2026-014/map"],
     ["Reports", "/cases/ARB-2026-014/reports"]
   ];

@@ -20,6 +20,7 @@ class SourceHypothesis:
     time_window_start: datetime
     time_window_end: datetime
     confidence: str
+    drift_corridor_bearing_deg: float | None = None
 
 
 def filter_candidate_tracks(

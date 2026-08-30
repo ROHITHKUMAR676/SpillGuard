@@ -50,18 +50,20 @@ class EulerDriftEngine:
         if forward_hours <= 0:
             raise ValueError("forward_hours must be positive")
 
+        effective_backward_hours = _effective_backward_hours(slick, backward_hours)
         backtrack = euler_advect(
             slick.centroid.x,
             slick.centroid.y,
             self.forcing,
-            hours=-float(backward_hours),
+            hours=-effective_backward_hours,
             step_hours=1.0,
         )
         source_point = Point(backtrack[-1].longitude, backtrack[-1].latitude)
         probable_source_region = source_region_from_slick(slick.geometry, slick.centroid, source_point)
 
-        window_end = slick.acquisition_timestamp - timedelta(hours=max(1, int(backward_hours * 0.65)))
-        window_start = slick.acquisition_timestamp - timedelta(hours=backward_hours)
+        release_window_hours = max(1.0, min(4.0, effective_backward_hours * 0.25))
+        window_start = slick.acquisition_timestamp - timedelta(hours=effective_backward_hours)
+        window_end = window_start + timedelta(hours=release_window_hours)
         window_start = max(window_start, slick.case_time_window_start)
         window_end = min(window_end, slick.case_time_window_end, slick.acquisition_timestamp)
         if window_end <= window_start:
@@ -116,3 +118,10 @@ def forecast_from_slick(slick_geometry: MultiPolygon, forcing: SyntheticForcing,
             polygon = polygon.convex_hull
         envelopes[percentile] = polygon.buffer(0)
     return envelopes
+
+
+def _effective_backward_hours(slick: SlickInput, requested_backward_hours: int) -> float:
+    available_case_hours = (slick.acquisition_timestamp - slick.case_time_window_start).total_seconds() / 3600.0
+    if available_case_hours <= 0:
+        raise ValueError("acquisition_timestamp must be after case_time_window_start")
+    return max(1.0, min(float(requested_backward_hours), available_case_hours))

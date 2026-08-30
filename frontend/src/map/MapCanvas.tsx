@@ -5,6 +5,9 @@ import { useEffect, useRef } from "react";
 
 import { DataSourceModeBadge } from "../components/shared/DataSourceModeBadge";
 import { operationalCase, operationalForecast, operationalSlick, operationalSource } from "../data/operational";
+import type { AISPosition, AttributionCandidate } from "../types/attribution";
+import type { ForwardForecast, SourceHypothesis } from "../types/drift";
+import type { OilSlick } from "../types/slick";
 import { MapControls } from "./MapControls";
 import { MapLegend } from "./MapLegend";
 
@@ -32,7 +35,7 @@ const indiaLand: GeoJSON.MultiPolygon = {
 };
 
 const hindcastCoords: LngLat[] = [[68.94, 16.18], [68.48, 15.95], [68.05, 15.74], [67.66, 15.52]];
-const vessels = [
+const fallbackVessels = [
   { rank: 1, score: 78, name: "MV Samudra Prerna", mmsi: "419000111", point: [67.78, 15.68] as LngLat, track: [[67.36, 15.28], [67.55, 15.48], [67.78, 15.68], [68.22, 15.94]] as LngLat[] },
   { rank: 2, score: 61, name: "MV Konkan Carrier", mmsi: "419000222", point: [68.18, 15.43] as LngLat, track: [[67.72, 16.1], [67.94, 15.75], [68.18, 15.43], [68.62, 15.22]] as LngLat[] },
   { rank: 3, score: 57, name: "MT Dakshin Star", mmsi: "419000333", point: [67.52, 15.94] as LngLat, track: [[67.14, 16.28], [67.34, 16.1], [67.52, 15.94], [67.92, 15.62]] as LngLat[] },
@@ -47,10 +50,21 @@ const phaseBuckets: Record<OperationPhase, LayerBucket[]> = {
   hindcast: ["base", "scene", "detection", "hindcast"],
   forecast: ["base", "scene", "detection", "hindcast", "forecast"],
   ais: ["base", "scene", "detection", "hindcast", "forecast", "ais"],
-  ranking: ["base", "scene", "detection", "hindcast", "forecast", "suspects"]
+  ranking: ["base", "scene", "detection", "hindcast", "forecast", "ais", "suspects"]
 };
 
-export function MapCanvas({ caseAoi, embedded = false, phase = "eez" }: { caseAoi?: GeoJSON.Polygon; embedded?: boolean; phase?: OperationPhase }) {
+interface MapCanvasProps {
+  caseAoi?: GeoJSON.Polygon;
+  embedded?: boolean;
+  phase?: OperationPhase;
+  liveSlick?: OilSlick;
+  liveSource?: SourceHypothesis;
+  liveForecast?: ForwardForecast;
+  liveCandidates?: AttributionCandidate[];
+  livePositions?: AISPosition[];
+}
+
+export function MapCanvas({ caseAoi, embedded = false, phase = "eez", liveSlick, liveSource, liveForecast, liveCandidates = [], livePositions = [] }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const layerGroupsRef = useRef<Record<LayerBucket, L.LayerGroup> | null>(null);
@@ -74,9 +88,9 @@ export function MapCanvas({ caseAoi, embedded = false, phase = "eez" }: { caseAo
       crossOrigin: true
     }).addTo(map);
 
-    layerGroupsRef.current = createLayerGroups(map, caseAoi);
+    layerGroupsRef.current = createLayerGroups(map, { caseAoi, liveSlick, liveSource, liveForecast, liveCandidates, livePositions });
     applyPhase(map, layerGroupsRef.current, phase);
-    fitPhase(map, phase);
+    fitPhase(map, phase, { caseAoi, liveSlick, liveSource, liveForecast, liveCandidates, livePositions });
 
     const resizeTimer = window.setTimeout(() => map.invalidateSize(), 0);
     return () => {
@@ -85,15 +99,15 @@ export function MapCanvas({ caseAoi, embedded = false, phase = "eez" }: { caseAo
       mapRef.current = null;
       layerGroupsRef.current = null;
     };
-  }, [caseAoi]);
+  }, [caseAoi, liveCandidates, liveForecast, livePositions, liveSlick, liveSource]);
 
   useEffect(() => {
     const map = mapRef.current;
     const groups = layerGroupsRef.current;
     if (!map || !groups) return;
     applyPhase(map, groups, phase);
-    fitPhase(map, phase);
-  }, [phase]);
+    fitPhase(map, phase, { caseAoi, liveSlick, liveSource, liveForecast, liveCandidates, livePositions });
+  }, [caseAoi, liveCandidates, liveForecast, livePositions, liveSlick, liveSource, phase]);
 
   return (
     <div className={`relative h-full w-full overflow-hidden bg-[#DCEEF7] ${embedded ? "min-h-full" : "min-h-[calc(100vh-104px)]"}`}>
@@ -115,7 +129,7 @@ export function MapCanvas({ caseAoi, embedded = false, phase = "eez" }: { caseAo
   );
 }
 
-function createLayerGroups(map: LeafletMap, caseAoi?: GeoJSON.Polygon): Record<LayerBucket, L.LayerGroup> {
+function createLayerGroups(map: LeafletMap, live: Omit<MapCanvasProps, "embedded" | "phase">): Record<LayerBucket, L.LayerGroup> {
   const groups: Record<LayerBucket, L.LayerGroup> = {
     base: L.layerGroup(),
     scene: L.layerGroup(),
@@ -132,33 +146,37 @@ function createLayerGroups(map: LeafletMap, caseAoi?: GeoJSON.Polygon): Record<L
     .addTo(groups.base);
   L.geoJSON(indiaLand, { interactive: false, style: { color: "#94A3B8", weight: 1.2, fillColor: "#F8FAFC", fillOpacity: 0.45 } }).addTo(groups.base);
 
-  L.geoJSON(caseAoi ?? operationalCase.aoi as GeoJSON.Polygon, { style: { color: "#1D4E89", weight: 2.5, dashArray: "5 5", fillOpacity: 0, className: "leaflet-hover-path" } }).addTo(groups.scene);
+  L.geoJSON(live.caseAoi ?? operationalCase.aoi as GeoJSON.Polygon, { style: { color: "#1D4E89", weight: 2.5, dashArray: "5 5", fillOpacity: 0, className: "leaflet-hover-path" } }).addTo(groups.scene);
   L.geoJSON(sceneFootprint, { style: { color: "#0284C7", weight: 3, fillColor: "#E0F2FE", fillOpacity: 0.42, className: "leaflet-hover-path" } })
     .bindTooltip(tooltipHtml("SAR scene footprint", ["Validated inside India EEZ"]), stickyTooltip())
     .addTo(groups.scene);
 
-  const slickRing = (operationalSlick.geometry.coordinates[0][0] as LngLat[]);
+  const slickGeometry = live.liveSlick?.geometry ?? operationalSlick.geometry;
+  const slickRing = firstPolygonRing(slickGeometry);
+  const slickCentroid = (live.liveSlick?.centroid?.coordinates ?? operationalSlick.centroid.coordinates) as LngLat;
   L.polygon(toLatLngs(slickRing), { color: "#111827", weight: 3.5, fillColor: "#262626", fillOpacity: 0.58, className: "leaflet-slick-draw leaflet-hover-path" })
-    .bindTooltip(tooltipHtml("Drawn oil slick mask", [`Confidence ${operationalSlick.confidence}`, "Hand-traced reveal from SAR contrast", "Area 142.4 km2"]), stickyTooltip())
+    .bindTooltip(tooltipHtml("Drawn oil slick mask", [`Confidence ${live.liveSlick?.confidence ?? operationalSlick.confidence}`, "Persisted detection geometry", `Area ${(live.liveSlick?.area_km2 ?? 142.4).toFixed(1)} km2`]), stickyTooltip())
     .addTo(groups.detection);
-  L.circleMarker(toLatLng(operationalSlick.centroid.coordinates as LngLat), { radius: 5, color: "#111827", weight: 2, fillColor: "#FFFFFF", fillOpacity: 1, className: "leaflet-hover-marker" }).addTo(groups.detection);
+  L.circleMarker(toLatLng(slickCentroid), { radius: 5, color: "#111827", weight: 2, fillColor: "#FFFFFF", fillOpacity: 1, className: "leaflet-hover-marker" }).addTo(groups.detection);
 
-  const sourceCenter = polygonCenter(operationalSource.probable_source_region.coordinates[0] as LngLat[]);
-  addHindcastCopies(groups.hindcast, slickRing, operationalSlick.centroid.coordinates as LngLat, sourceCenter);
-  addMovingSlickCopy(groups.hindcast, operationalSlick.centroid.coordinates as LngLat, sourceCenter);
-  L.geoJSON(operationalSource.probable_source_region as GeoJSON.Polygon, { style: { color: "#0369A1", weight: 3, fillColor: "#0EA5E9", fillOpacity: 0.3, className: "leaflet-source-save leaflet-hover-path" } })
-    .bindTooltip(tooltipHtml("Saved source location", ["T-48h contracted slick copy", "Small irregular source polygon"]), stickyTooltip())
+  const sourceRegion = live.liveSource?.probable_source_region ?? operationalSource.probable_source_region as GeoJSON.Polygon;
+  const sourceCenter = polygonCenter(sourceRegion.coordinates[0] as LngLat[]);
+  addHindcastCopies(groups.hindcast, slickRing, slickCentroid, sourceCenter);
+  addMovingSlickCopy(groups.hindcast, slickCentroid, sourceCenter);
+  L.geoJSON(sourceRegion, { style: { color: "#0369A1", weight: 3, fillColor: "#0EA5E9", fillOpacity: 0.3, className: "leaflet-source-save leaflet-hover-path" } })
+    .bindTooltip(tooltipHtml("Saved source location", [live.liveSource ? "Persisted Euler source region" : "T-48h contracted slick copy", "Small irregular source polygon"]), stickyTooltip())
     .addTo(groups.hindcast);
-  L.polyline(toLatLngs(hindcastCoords), { color: "#FFFFFF", weight: 10, opacity: 0.95, className: "leaflet-hindcast-shadow" }).addTo(groups.hindcast);
-  L.polyline(toLatLngs(hindcastCoords), { color: "#2563EB", weight: 5, dashArray: "2 14", lineCap: "round", opacity: 1, className: "leaflet-hindcast-flow leaflet-hover-path" })
+  const hindcastLine = [slickCentroid, interpolatePoint(slickCentroid, sourceCenter, 0.33), interpolatePoint(slickCentroid, sourceCenter, 0.66), sourceCenter];
+  L.polyline(toLatLngs(live.liveSource ? hindcastLine : hindcastCoords), { color: "#FFFFFF", weight: 10, opacity: 0.95, className: "leaflet-hindcast-shadow" }).addTo(groups.hindcast);
+  L.polyline(toLatLngs(live.liveSource ? hindcastLine : hindcastCoords), { color: "#2563EB", weight: 5, dashArray: "2 14", lineCap: "round", opacity: 1, className: "leaflet-hindcast-flow leaflet-hover-path" })
     .bindTooltip(tooltipHtml("Euler hindcast trajectory", ["T-0h detected slick", "T-12h here", "T-24h here", "T-48h saved source"]), stickyTooltip())
     .addTo(groups.hindcast);
   addTimeMarker(groups.hindcast, [68.48, 15.95], "T-12h", "hindcast");
   addTimeMarker(groups.hindcast, [68.05, 15.74], "T-24h", "hindcast");
   addTimeMarker(groups.hindcast, sourceCenter, "T-48h", "hindcast");
 
-  const forecastBase = operationalForecast.contours[0].polygon.coordinates[0] as LngLat[];
-  const centroid = operationalSlick.centroid.coordinates as LngLat;
+  const forecastBase = (live.liveForecast?.contours[0]?.polygon.coordinates[0] ?? operationalForecast.contours[0].polygon.coordinates[0]) as LngLat[];
+  const centroid = slickCentroid;
   addForecastContour(groups.forecast, forecastBase, centroid, 0.42, "12h", "#CA8A04", "#FACC15", 0.26, "0s");
   addForecastContour(groups.forecast, forecastBase, centroid, 0.64, "24h", "#EA580C", "#FB923C", 0.22, "0.7s");
   addForecastContour(groups.forecast, forecastBase, centroid, 0.88, "36h", "#DC2626", "#F87171", 0.18, "1.4s");
@@ -167,6 +185,8 @@ function createLayerGroups(map: LeafletMap, caseAoi?: GeoJSON.Polygon): Record<L
   addTimeMarker(groups.forecast, [69.72, 16.22], "+24h", "forecast");
   addTimeMarker(groups.forecast, [70.1, 17.03], "+48h", "forecast");
 
+  const liveCandidates = live.liveCandidates ?? [];
+  const vessels = liveCandidates.length ? liveVessels(liveCandidates, live.livePositions ?? []) : fallbackVessels;
   vessels.forEach((vessel) => {
     const hot = vessel.rank <= 3;
     L.polyline(toLatLngs(vessel.track), { color: hot ? "#B3261E" : "#6B7280", weight: hot ? 3 : 2.5, opacity: hot ? 0.78 : 0.42, dashArray: hot ? "2 12" : "2 10", lineCap: "round", className: "leaflet-vessel-track leaflet-hover-path" }).addTo(groups.ais);
@@ -185,6 +205,29 @@ function createLayerGroups(map: LeafletMap, caseAoi?: GeoJSON.Polygon): Record<L
   return groups;
 }
 
+function firstPolygonRing(geometry: GeoJSON.MultiPolygon | GeoJSON.Polygon): LngLat[] {
+  if (geometry.type === "MultiPolygon") return geometry.coordinates[0][0] as LngLat[];
+  return geometry.coordinates[0] as LngLat[];
+}
+
+function liveVessels(candidates: AttributionCandidate[], positions: AISPosition[]) {
+  return candidates.map((candidate) => {
+    const track = positions
+      .filter((point) => point.vessel_id === candidate.vessel.id || point.mmsi === candidate.vessel.mmsi)
+      .sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime())
+      .map((point) => [point.lon, point.lat] as LngLat);
+    const point = track[track.length - 1] ?? [0, 0] as LngLat;
+    return {
+      rank: candidate.rank,
+      score: candidate.overall_score,
+      name: candidate.vessel.name ?? candidate.vessel.mmsi ?? "Unknown vessel",
+      mmsi: candidate.vessel.mmsi ?? "unknown",
+      point,
+      track
+    };
+  }).filter((vessel) => vessel.track.length > 0);
+}
+
 function applyPhase(map: LeafletMap, groups: Record<LayerBucket, L.LayerGroup>, phase: OperationPhase) {
   const visible = new Set(phaseBuckets[phase]);
   Object.entries(groups).forEach(([bucket, group]) => {
@@ -196,9 +239,32 @@ function applyPhase(map: LeafletMap, groups: Record<LayerBucket, L.LayerGroup>, 
   });
 }
 
-function fitPhase(map: LeafletMap, phase: OperationPhase) {
-  const bounds = phase === "monitoring" || phase === "eez" ? INDIA_BOUNDS : CASE_BOUNDS;
+function fitPhase(map: LeafletMap, phase: OperationPhase, live?: Omit<MapCanvasProps, "embedded" | "phase">) {
+  const liveBounds = live ? boundsFromLiveData(live) : null;
+  const bounds = liveBounds ?? (phase === "monitoring" || phase === "eez" ? INDIA_BOUNDS : CASE_BOUNDS);
   map.fitBounds(bounds, { padding: [44, 44], animate: false, maxZoom: phase === "monitoring" || phase === "eez" ? 5.25 : 7.5 });
+}
+
+function boundsFromLiveData(live: Omit<MapCanvasProps, "embedded" | "phase">): LatLngBoundsExpression | null {
+  const points: LngLat[] = [];
+  collectPolygonPoints(live.caseAoi, points);
+  collectPolygonPoints(live.liveSlick?.geometry, points);
+  collectPolygonPoints(live.liveSource?.probable_source_region, points);
+  live.liveForecast?.contours.forEach((contour) => collectPolygonPoints(contour.polygon, points));
+  live.livePositions?.forEach((position) => points.push([position.lon, position.lat]));
+  if (!points.length) return null;
+  const lons = points.map((point) => point[0]);
+  const lats = points.map((point) => point[1]);
+  return [[Math.min(...lats), Math.min(...lons)], [Math.max(...lats), Math.max(...lons)]];
+}
+
+function collectPolygonPoints(geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon | undefined, points: LngLat[]) {
+  if (!geometry) return;
+  if (geometry.type === "Polygon") {
+    points.push(...geometry.coordinates.flat() as LngLat[]);
+  } else {
+    geometry.coordinates.forEach((polygon) => points.push(...polygon.flat() as LngLat[]));
+  }
 }
 
 function addGrid(group: L.LayerGroup) {

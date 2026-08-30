@@ -1,0 +1,2 @@
+[2026-08-30 15:51:22,614: INFO/MainProcess] Connected to sqla+postgresql://postgres:**@localhost:5432/SpillGuard
+[2026-08-30 15:51:22,816: INFO/MainProcess] celery@DESKTOP-HSKRCVC ready.

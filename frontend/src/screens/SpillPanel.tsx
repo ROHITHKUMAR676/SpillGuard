@@ -1,7 +1,7 @@
 import { AlertTriangle } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { getSlick } from "../api/cases";
+import { getLatestSlick, getSlick } from "../api/cases";
 import { Badge } from "../components/shared/Badge";
 import { Button } from "../components/shared/Button";
 import { ConfidenceChip } from "../components/shared/ConfidenceChip";
@@ -10,20 +10,22 @@ import { ErrorState } from "../components/shared/ErrorState";
 import type { OilSlick } from "../types/slick";
 
 export function SpillPanel() {
+  const caseId = window.location.pathname.split("/cases/")[1]?.split("/")[0] ?? "";
   const slickId = window.location.pathname.split("/spill/")[1]?.split("/")[0] ?? "";
   const [slick, setSlick] = useState<OilSlick | null>(null);
-  const [loading, setLoading] = useState(Boolean(slickId));
+  const [loading, setLoading] = useState(Boolean(caseId));
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!slickId) {
+    if (!caseId) {
       setLoading(false);
-      setError("Slick ID is missing from the route.");
+      setError("Case ID is missing from the route.");
       return;
     }
     let cancelled = false;
     setLoading(true);
-    getSlick(slickId)
+    const request = slickId ? getSlick(slickId) : getLatestSlick(caseId);
+    request
       .then((result) => {
         if (!cancelled) setSlick(result);
       })
@@ -36,7 +38,7 @@ export function SpillPanel() {
     return () => {
       cancelled = true;
     };
-  }, [slickId]);
+  }, [caseId, slickId]);
 
   if (loading) {
     return <div className="mx-auto max-w-[960px] p-6"><EmptyState icon={AlertTriangle} headline="Loading slick characterization" body="Fetching the persisted detection output." /></div>;

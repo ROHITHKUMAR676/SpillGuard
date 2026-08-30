@@ -7,10 +7,10 @@ export function SubHeader({ route, navigate, caseId }: { route: string; navigate
   const paths: Record<string, string> = {
     Map: `${base}/map`,
     Timeline: `${base}/timeline`,
-    Spill: `${base}/spill/slick-9f3a`,
+    Spill: `${base}/spill`,
     Source: `${base}/source`,
     Vessels: `${base}/vessels`,
-    Evidence: `${base}/vessels/ves-1`,
+    Evidence: `${base}/evidence`,
     Reports: `${base}/reports`,
     Audit: `${base}/audit`
   };

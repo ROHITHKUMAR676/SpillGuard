@@ -39,7 +39,7 @@ def score_candidates(features_by_mmsi: dict[str, TrackDFeatures], source_window_
         sub_scores = {
             "spatial": _clamp(100.0 / (1.0 + max(features.spatial_proximity_km, 0.0))),
             "temporal": _clamp((max(features.temporal_overlap_h, 0.0) / max(source_window_hours, 1.0)) * 100.0),
-            "trajectory": 50.0,
+            "trajectory": _clamp((features.trajectory_compatibility if features.trajectory_compatibility is not None else 0.5) * 100.0),
             "source_probability": 50.0,
             "behavioural": _clamp(behavioural),
             "ais_continuity": 40.0 if features.has_ais_gap_in_window else 100.0,
@@ -64,11 +64,15 @@ def generate_evidence(vessel_name: str, features: TrackDFeatures) -> tuple[list[
         supporting.append(f"{vessel_name}: AIS gap observed during the relevant source time window.")
     if features.loitering_h > 0:
         supporting.append(f"{vessel_name}: low-speed loitering observed for {features.loitering_h:.2f} h inside the probable source region.")
+    if features.trajectory_compatibility is not None and features.trajectory_compatibility >= 0.75:
+        supporting.append(f"{vessel_name}: AIS movement bearing is compatible with the drift corridor.")
 
     if not features.has_ais_gap_in_window:
         contradicting.append(f"{vessel_name}: no AIS gap observed during the relevant time window, reducing evidence for deliberate AIS concealment.")
     if features.spatial_proximity_km > 20:
         contradicting.append(f"{vessel_name}: {features.spatial_proximity_km:.1f} km from the source region, indicating weak spatial proximity.")
+    if features.trajectory_compatibility is not None and features.trajectory_compatibility < 0.45:
+        contradicting.append(f"{vessel_name}: AIS movement bearing is poorly aligned with the drift corridor.")
 
     return supporting, contradicting
 

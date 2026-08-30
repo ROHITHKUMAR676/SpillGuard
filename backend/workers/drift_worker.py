@@ -1,13 +1,11 @@
 import json
 import time
-from datetime import timedelta
 
 from sqlalchemy import text
-from shapely.geometry import Polygon, mapping, shape
+from shapely.geometry import mapping, shape
 
-from core.config import settings
 from core.db import SessionLocal
-from modules.ais.synthetic import AISObservation, SyntheticAISProvider, validate_observations
+from modules.ais.synthetic import AISObservation, generate_controlled_attribution_tracks, validate_observations
 from modules.attribution.features import detect_region_events, extract_features
 from modules.attribution.filter import SourceHypothesis, filter_candidate_tracks
 from modules.attribution.scorer import MODEL_VERSION, generate_evidence, rank_scores, score_candidates
@@ -137,13 +135,17 @@ def run_vessel_analysis(job_id: str, case_id: str):
         db.execute(text("UPDATE jobs SET status='running', progress=0.2, updated_at=now() WHERE id=:id"), {"id": job_id})
         db.commit()
 
-        provider = SyntheticAISProvider(settings.synthetic_ais_csv_path)
-        observations = provider.load()
+        source = _load_source_hypothesis(db, case_id)
+        observations = generate_controlled_attribution_tracks(
+            source.probable_source_region,
+            source.time_window_start,
+            source.time_window_end,
+            source.drift_corridor_bearing_deg or 0.0,
+        )
         validate_observations(observations)
         tracks: dict[str, list[AISObservation]] = {}
         for observation in observations:
             tracks.setdefault(observation.mmsi, []).append(observation)
-        source = _load_source_hypothesis(db, case_id, observations)
         candidate_tracks = filter_candidate_tracks(tracks, source)
         if not candidate_tracks:
             raise RuntimeError("No AIS candidate tracks intersect the source-region/time-window gate")
@@ -281,12 +283,13 @@ def _persist_vessel_track(db, mmsi: str, track: list[AISObservation]) -> str:
     return vessel_id
 
 
-def _load_source_hypothesis(db, case_id: str, observations: list[AISObservation]) -> SourceHypothesis:
+def _load_source_hypothesis(db, case_id: str) -> SourceHypothesis:
     row = db.execute(
         text(
             """
             SELECT ST_AsGeoJSON(sh.probable_source_region) AS probable_source_region,
-                   sh.time_window_start, sh.time_window_end, sh.confidence
+                   sh.time_window_start, sh.time_window_end, sh.confidence,
+                   sh.drift_corridor_bearing_deg
             FROM source_hypotheses sh
             JOIN drift_runs dr ON dr.id = sh.drift_run_id
             JOIN oil_slicks os ON os.id = dr.slick_id
@@ -298,25 +301,16 @@ def _load_source_hypothesis(db, case_id: str, observations: list[AISObservation]
         ),
         {"case_id": case_id},
     ).mappings().first()
-    if row:
-        return SourceHypothesis(
-            probable_source_region=shape(json.loads(row["probable_source_region"])),
-            time_window_start=row["time_window_start"],
-            time_window_end=row["time_window_end"],
-            confidence=row["confidence"],
-        )
-
-    release = next((point for point in observations if point.release_time_ground_truth and point.source_lat_ground_truth and point.source_lon_ground_truth), None)
-    if not release:
-        raise RuntimeError("Source hypothesis not found and synthetic AIS CSV lacks controlled source metadata")
-    radius = 0.10
-    lon = release.source_lon_ground_truth
-    lat = release.source_lat_ground_truth
+    if not row:
+        raise RuntimeError("Source hypothesis not found; run Track C drift before AIS attribution")
+    if row["drift_corridor_bearing_deg"] is None:
+        raise RuntimeError("Source hypothesis is missing drift_corridor_bearing_deg")
     return SourceHypothesis(
-        probable_source_region=Polygon([(lon - radius, lat - radius), (lon + radius, lat - radius), (lon + radius, lat + radius), (lon - radius, lat + radius), (lon - radius, lat - radius)]),
-        time_window_start=release.release_time_ground_truth - timedelta(hours=1),
-        time_window_end=release.release_time_ground_truth + timedelta(hours=1),
-        confidence="medium",
+        probable_source_region=shape(json.loads(row["probable_source_region"])),
+        time_window_start=row["time_window_start"],
+        time_window_end=row["time_window_end"],
+        confidence=row["confidence"],
+        drift_corridor_bearing_deg=row["drift_corridor_bearing_deg"],
     )
 
 

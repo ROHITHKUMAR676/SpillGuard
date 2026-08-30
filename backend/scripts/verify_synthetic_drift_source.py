@@ -127,6 +127,8 @@ def main() -> None:
         raise SystemExit("Drift job did not succeed")
     if job["result_ref"] != source["drift_run_id"]:
         raise SystemExit("Job result_ref does not point to the persisted drift run")
+    if forecast["drift_run_id"] != job["result_ref"] or len(forecast["contours"]) != 3:
+        raise SystemExit("Forecast API does not return the latest drift run contours")
     if not db_checks["valid_source_region"] or db_checks["source_region_srid"] != 4326:
         raise SystemExit("Source region is not valid EPSG:4326 PostGIS geometry")
     if not db_checks["source_intersects_aoi"]:

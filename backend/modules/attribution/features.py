@@ -14,6 +14,7 @@ from modules.attribution.geo import point_to_region_distance_km
 
 LOITERING_SPEED_THRESHOLD_KNOTS = 2.0
 AIS_GAP_THRESHOLD_HOURS = 2.0
+NEUTRAL_SOURCE_PROBABILITY_NOTE = "neutral_placeholder_no_probability_surface_reader"
 
 
 @dataclass(frozen=True)
@@ -31,6 +32,7 @@ class TrackDFeatures:
     vessel_mean_bearing_deg: float | None
     trajectory_compatibility: float | None
     source_probability: float
+    source_probability_note: str
     historical_median_speed_knots: float | None
     historical_speed_std_knots: float | None
     current_median_speed_knots: float | None
@@ -68,13 +70,20 @@ def extract_features(track: list[AISObservation], source: SourceHypothesis) -> T
     gaps = detect_ais_gaps(ordered)
     relevant_gaps = [gap for gap in gaps if gap.gap_end >= source.time_window_start and gap.gap_start <= source.time_window_end]
 
+    vessel_bearing = first_available_bearing(
+        mean_bearing_in_region(source_window, region),
+        mean_available_bearing(source_window),
+        mean_available_bearing(ordered),
+    )
+
     return TrackDFeatures(
         spatial_proximity_km=min(distances) if distances else float("inf"),
         time_in_region_h=duration_inside_region(source_window, region),
         temporal_overlap_h=temporal_overlap_hours(ordered, source.time_window_start, source.time_window_end),
-        vessel_mean_bearing_deg=mean_bearing_in_region(source_window, region),
-        trajectory_compatibility=None,
+        vessel_mean_bearing_deg=vessel_bearing,
+        trajectory_compatibility=trajectory_compatibility(vessel_bearing, source.drift_corridor_bearing_deg),
         source_probability=0.5,
+        source_probability_note=NEUTRAL_SOURCE_PROBABILITY_NOTE,
         historical_median_speed_knots=historical_median,
         historical_speed_std_knots=historical_std,
         current_median_speed_knots=current_median,
@@ -120,6 +129,22 @@ def mean_bearing_in_region(track: list[AISObservation], region) -> float | None:
         if _inside(previous, region) or _inside(current, region):
             bearings.append(current.cog_deg or 0.0)
     return float(mean(bearings)) if bearings else None
+
+
+def mean_available_bearing(track: list[AISObservation]) -> float | None:
+    bearings = [point.cog_deg for point in track if point.cog_deg is not None]
+    return float(mean(bearings)) if bearings else None
+
+
+def first_available_bearing(*bearings: float | None) -> float | None:
+    return next((bearing for bearing in bearings if bearing is not None), None)
+
+
+def trajectory_compatibility(vessel_bearing_deg: float | None, drift_corridor_bearing_deg: float | None) -> float | None:
+    if vessel_bearing_deg is None or drift_corridor_bearing_deg is None:
+        return None
+    diff = abs((vessel_bearing_deg - drift_corridor_bearing_deg + 180.0) % 360.0 - 180.0)
+    return max(0.0, 1.0 - diff / 180.0)
 
 
 def loitering_hours(track: list[AISObservation], region) -> float:

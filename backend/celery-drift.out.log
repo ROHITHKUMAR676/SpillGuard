@@ -1,0 +1,23 @@
+ 
+ -------------- celery@DESKTOP-HSKRCVC v5.6.3 (recovery)
+--- ***** ----- 
+-- ******* ---- Windows-11-10.0.26200-SP0 2026-08-30 15:51:21
+- *** --- * --- 
+- ** ---------- [config]
+- ** ---------- .> app:         ps26143:0x2a503ff9a90
+- ** ---------- .> transport:   sqla+postgresql://postgres:**@localhost:5432/SpillGuard
+- ** ---------- .> results:     postgresql://postgres:**@localhost:5432/SpillGuard
+- *** --- * --- .> concurrency: 12 (solo)
+-- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)
+--- ***** ----- 
+ -------------- [queues]
+                .> drift            exchange=drift(direct) key=drift
+                
+
+[tasks]
+  . workers.drift_worker.run_backward_drift
+  . workers.drift_worker.run_forward_drift
+  . workers.drift_worker.run_vessel_analysis
+  . workers.ml_worker.run_segmentation
+  . workers.synthetic_ingestion_worker.run_synthetic_ingestion_batch
+

@@ -1,13 +1,19 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+BACKEND_ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
 
 
 class Settings(BaseSettings):
     minio_root_user: str = "ps26143admin"
     minio_root_password: str = "ps26143_minio_password"
     redis_url: str = "redis://localhost:6379/0"
+    celery_broker_url: str | None = None
+    celery_result_backend: str | None = None
     jwt_secret: str = "change_me_to_a_random_32_byte_string"
     copernicus_dataspace_user: str = ""
     copernicus_dataspace_pass: str = ""
@@ -25,8 +31,11 @@ class Settings(BaseSettings):
     synthetic_ais_csv_path: str = "C:/Users/Rohithkumar/Downloads/synthetic_ais_contract_aligned_150_vessels_corrected.csv"
     gemini_api_key: str = ""
     gemini_model: str = "gemini-1.5-flash"
+    synthetic_ingestion_enabled: bool = False
+    synthetic_ingestion_batch_size: int = 5
+    synthetic_ingestion_next_delay_seconds: int = 180
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=BACKEND_ENV_FILE, extra="ignore")
 
 
 @lru_cache
